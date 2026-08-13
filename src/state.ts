@@ -4,17 +4,40 @@ import { buildRotation } from './math/rotations';
 import type { ProjectionMode } from './math/project';
 import type { Mat3 } from './math/types';
 
+/** 三模式：三庭五眼（比例层）/ Loomis（几何层）/ Bridgman（结构层） */
+export type HeadMode = 'santing' | 'loomis' | 'bridgman';
+
 export interface AppState {
   thetaDeg: number; // Y 轴旋转（Yaw）
   phiDeg: number; // X 轴旋转（Pitch）
   psiDeg: number; // Z 轴旋转（Roll）
   mode: ProjectionMode;
   focal: number; // 透视强度 f
+  headMode: HeadMode;
+  lineArt: boolean; // 纯线稿模式（白底黑线）
+
+  // 通用
+  showAxes: boolean;
+  // 三庭五眼
   showTing: boolean;
   showYan: boolean;
   showMidline: boolean;
   showContour: boolean;
-  showAxes: boolean;
+  // Loomis
+  showSphereGrid: boolean;
+  showFrontalPlane: boolean;
+  showSidePlanes: boolean;
+  showEquator: boolean;
+  showMidAxis: boolean;
+  showChinLine: boolean;
+  // Bridgman
+  showCranium: boolean;
+  showFaceWedge: boolean;
+  showMandible: boolean;
+  showEyeSockets: boolean;
+  showNasal: boolean;
+  showBones: boolean;
+  showMuscleLines: boolean;
 }
 
 export const initialState: AppState = {
@@ -23,11 +46,27 @@ export const initialState: AppState = {
   psiDeg: 0,
   mode: 'orthographic',
   focal: 10,
+  headMode: 'santing',
+  lineArt: false,
+
+  showAxes: true,
   showTing: true,
   showYan: true,
   showMidline: true,
   showContour: true,
-  showAxes: true,
+  showSphereGrid: true,
+  showFrontalPlane: true,
+  showSidePlanes: true,
+  showEquator: true,
+  showMidAxis: true,
+  showChinLine: true,
+  showCranium: true,
+  showFaceWedge: true,
+  showMandible: true,
+  showEyeSockets: true,
+  showNasal: true,
+  showBones: true,
+  showMuscleLines: true,
 };
 
 const state: AppState = { ...initialState };

@@ -11,11 +11,18 @@
     <header class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 bg-zinc-950 px-4 py-2">
       <h1 class="text-sm font-semibold tracking-wide text-zinc-100">
         FaceAngle Lab
-        <span class="ml-2 text-xs font-normal text-zinc-500">人脸角度 · 线性代数绘画法</span>
+        <span class="ml-2 text-xs font-normal text-zinc-500">人脸 · 线性代数解剖台</span>
       </h1>
-      <div class="flex items-center gap-1.5 text-xs">
-        <button id="mode-ortho" class="rounded-md border px-3 py-1 transition hover:border-zinc-500">正交</button>
+      <div class="flex flex-wrap items-center gap-1.5 text-xs">
+        <nav class="flex items-center gap-0.5 rounded-lg bg-zinc-900 p-0.5">
+          <button id="tab-santing" class="rounded-md px-3 py-1 transition">三庭五眼</button>
+          <button id="tab-loomis" class="rounded-md px-3 py-1 transition">Loomis 构造法</button>
+          <button id="tab-bridgman" class="rounded-md px-3 py-1 transition">Bridgman 块面法</button>
+        </nav>
+        <span class="mx-1 h-4 w-px bg-zinc-800"></span>
+        <button id="mode-ortho" class="rounded-md border border-zinc-700 px-3 py-1 text-zinc-300 transition hover:border-zinc-500">正交</button>
         <button id="mode-persp" class="rounded-md border border-zinc-700 px-3 py-1 text-zinc-300 transition hover:border-zinc-500">透视</button>
+        <button id="btn-lineart" class="rounded-md border border-zinc-700 px-3 py-1 text-zinc-300 transition hover:border-zinc-500">纯线稿</button>
         <span class="mx-1 h-4 w-px bg-zinc-800"></span>
         <button id="btn-reset" class="rounded-md border border-zinc-700 px-3 py-1 text-zinc-300 transition hover:border-zinc-500">重置</button>
         <button id="btn-export" class="rounded-md bg-cyan-600 px-3 py-1 font-medium text-white transition hover:bg-cyan-500">导出 PNG</button>
@@ -30,6 +37,10 @@
       <section class="relative min-h-[320px] bg-zinc-950 md:min-h-0">
         <canvas id="canvas-2d" class="block h-full w-full"></canvas>
         <div class="pointer-events-none absolute left-3 top-3 z-10 text-[11px] text-zinc-500">2D 投影 · 画家正面视角</div>
+        <details id="legend" class="absolute left-3 top-8 z-10 w-56 rounded-md border border-zinc-800 bg-zinc-900/90 text-[11px] text-zinc-300">
+          <summary class="cursor-pointer select-none px-2 py-1 text-zinc-400">图例</summary>
+          <div id="legend-body" class="px-2 py-1.5 leading-relaxed"></div>
+        </details>
         <div id="canvas-mode-tag" class="pointer-events-none absolute right-3 top-3 z-10 rounded bg-zinc-900/80 px-2 py-0.5 text-[11px] text-cyan-300"></div>
       </section>
     </main>
@@ -38,30 +49,67 @@
     <section id="matrix-panel" class="border-t border-zinc-800 bg-zinc-950 px-4 py-2 text-[12px] leading-relaxed"></section>
 
     <!-- 控制面板 -->
-    <section class="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-zinc-800 bg-zinc-950 px-4 py-3 md:grid-cols-6">
-      <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
-        <span>Y 轴旋转 θ（Yaw）<b id="val-theta" class="float-right font-mono text-cyan-300">0°</b></span>
-        <input id="slider-theta" type="range" min="-180" max="180" step="0.5" value="0" />
-      </label>
-      <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
-        <span>X 轴旋转 φ（Pitch）<b id="val-phi" class="float-right font-mono text-cyan-300">0°</b></span>
-        <input id="slider-phi" type="range" min="-90" max="90" step="0.5" value="0" />
-      </label>
-      <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
-        <span>Z 轴旋转 ψ（Roll）<b id="val-psi" class="float-right font-mono text-cyan-300">0°</b></span>
-        <input id="slider-psi" type="range" min="-180" max="180" step="0.5" value="0" />
-      </label>
-      <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
-        <span>透视强度 f<b id="val-focal" class="float-right font-mono text-cyan-300">10</b></span>
-        <input id="slider-focal" type="range" min="4" max="24" step="0.5" value="10" />
-      </label>
-      <div class="col-span-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-zinc-300 md:col-span-1">
-        <span class="col-span-2 mb-0.5 text-zinc-500">辅助线显示</span>
-        <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-ting" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-cyan-400"></span>三庭线</label>
-        <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-yan" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-zinc-300"></span>五眼线</label>
-        <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-midline" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-rose-400"></span>中线</label>
-        <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-contour" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-yellow-400"></span>轮廓椭圆</label>
-        <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-axes" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-zinc-500"></span>坐标轴</label>
+    <section class="border-t border-zinc-800 bg-zinc-950 px-4 py-3 text-[11px]">
+      <!-- 角度预设 -->
+      <div class="mb-3 flex flex-wrap items-center gap-2">
+        <span class="text-zinc-500">角度预设</span>
+        <button data-preset="0" class="rounded-md border border-zinc-700 px-2.5 py-1 text-zinc-300 transition hover:border-zinc-500">正面 0°</button>
+        <button data-preset="45" class="rounded-md border border-zinc-700 px-2.5 py-1 text-zinc-300 transition hover:border-zinc-500">3/4 左 45°</button>
+        <button data-preset="-45" class="rounded-md border border-zinc-700 px-2.5 py-1 text-zinc-300 transition hover:border-zinc-500">3/4 右 -45°</button>
+        <button data-preset="90" class="rounded-md border border-zinc-700 px-2.5 py-1 text-zinc-300 transition hover:border-zinc-500">正侧 90°</button>
+      </div>
+
+      <!-- 滑块 -->
+      <div class="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-5">
+        <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+          <span>Y 轴旋转 θ（Yaw）<b id="val-theta" class="float-right font-mono text-cyan-300">0°</b></span>
+          <input id="slider-theta" type="range" min="-180" max="180" step="0.5" value="0" />
+        </label>
+        <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+          <span>X 轴旋转 φ（Pitch）<b id="val-phi" class="float-right font-mono text-cyan-300">0°</b></span>
+          <input id="slider-phi" type="range" min="-90" max="90" step="0.5" value="0" />
+        </label>
+        <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+          <span>Z 轴旋转 ψ（Roll）<b id="val-psi" class="float-right font-mono text-cyan-300">0°</b></span>
+          <input id="slider-psi" type="range" min="-180" max="180" step="0.5" value="0" />
+        </label>
+        <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+          <span>透视强度 f<b id="val-focal" class="float-right font-mono text-cyan-300">10</b></span>
+          <input id="slider-focal" type="range" min="4" max="24" step="0.5" value="10" />
+        </label>
+        <label class="flex items-center gap-1.5 self-end text-zinc-300 md:justify-self-start">
+          <input id="tg-axes" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-zinc-500"></span>坐标轴
+        </label>
+      </div>
+
+      <!-- 分模式开关组 -->
+      <div class="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 md:grid-cols-3">
+        <div id="toggles-santing" class="text-zinc-300">
+          <span class="mb-0.5 block text-zinc-500">三庭五眼图层</span>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-ting" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-cyan-400"></span>三庭线</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-yan" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-zinc-300"></span>五眼线</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-midline" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-rose-400"></span>中线</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-contour" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-yellow-400"></span>轮廓椭圆</label>
+        </div>
+        <div id="toggles-loomis" class="hidden text-zinc-300">
+          <span class="mb-0.5 block text-zinc-500">Loomis 图层</span>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-grid" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-slate-600"></span>球体经纬网格</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-frontal" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-sky-400"></span>面部平面</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-side" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-violet-400"></span>侧面平面</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-equator" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-cyan-400"></span>眉线（赤道）</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-midaxis" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-rose-400"></span>中轴线</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-chin" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-white"></span>下巴构造线</label>
+        </div>
+        <div id="toggles-bridgman" class="hidden text-zinc-300">
+          <span class="mb-0.5 block text-zinc-500">Bridgman 图层</span>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-cranium" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-slate-700"></span>颅骨块</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-wedge" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-amber-500"></span>面部楔</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-mandible" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-slate-400"></span>下颌块</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-sockets" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-black ring-1 ring-zinc-600"></span>眼眶</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-nasal" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-yellow-300"></span>鼻骨块</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-bones" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-amber-400"></span>骨点标记</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-muscle" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-red-300"></span>力学构造线</label>
+        </div>
       </div>
     </section>
   </div>

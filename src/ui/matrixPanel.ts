@@ -1,6 +1,7 @@
-/** 矩阵条：实时渲染旋转矩阵 R 与关键公式数值 */
+/** 矩阵条：R 矩阵（公共）+ 分模式关键公式 */
 
 import { NOSE_TIP, C } from '../math/head';
+import { bonePoints } from '../math/bridgman';
 import { outlineEllipseOrtho } from '../math/project';
 import type { AppState } from '../state';
 import { applyMat3 } from '../math/types';
@@ -15,13 +16,20 @@ function cellClass(v: number): string {
   return v > 0 ? 'text-cyan-300' : 'text-rose-400';
 }
 
+function line(text: string, cls = 'text-zinc-400'): HTMLElement {
+  const d = document.createElement('div');
+  d.className = cls;
+  d.textContent = text;
+  return d;
+}
+
 export function renderMatrix(el: HTMLElement, state: AppState, R: Mat3): void {
   el.replaceChildren();
 
   const wrap = document.createElement('div');
   wrap.className = 'flex flex-wrap items-center gap-x-8 gap-y-2';
 
-  // 矩阵块
+  // 矩阵块（公共）
   const mWrap = document.createElement('div');
   mWrap.className = 'flex items-center gap-3';
   const label = document.createElement('span');
@@ -38,26 +46,49 @@ export function renderMatrix(el: HTMLElement, state: AppState, R: Mat3): void {
   mWrap.append(label, grid);
   wrap.appendChild(mWrap);
 
-  // 关键公式
+  // 分模式公式区
   const fWrap = document.createElement('div');
-  fWrap.className = 'flex flex-col gap-0.5 text-zinc-400';
-
-  const e = outlineEllipseOrtho(R);
-  const line1 = document.createElement('div');
-  line1.textContent = `轮廓椭圆: rx=${e.rx.toFixed(3)} · ry=${e.ry.toFixed(3)} · 旋转=${(e.angle * 180 / Math.PI).toFixed(1)}° (Y 旋转时 rx=√(a²cos²θ+c²sin²θ))`;
+  fWrap.className = 'flex flex-col gap-0.5';
 
   const nose = applyMat3(R, NOSE_TIP);
   const sinTheta = Math.sin((state.thetaDeg * Math.PI) / 180);
-  const line2 = document.createElement('div');
-  line2.textContent = `中线偏移: |x′(鼻尖)| = ${Math.abs(nose.x).toFixed(3)} (≈ c·sinθ = ${(C * sinTheta).toFixed(3)}，φ=ψ=0 时)`;
 
-  const line3 = document.createElement('div');
-  line3.textContent =
-    state.mode === 'orthographic'
-      ? '投影: 正交 — 取旋转后 (x′, y′)'
-      : `投影: 透视 — (f·x′/(d−z′), f·y′/(d−z′))，f=${state.focal.toFixed(1)}，d=${'8'}`;
+  if (state.headMode === 'santing') {
+    const e = outlineEllipseOrtho(R);
+    fWrap.append(
+      line(`轮廓椭圆: rx=${e.rx.toFixed(3)} · ry=${e.ry.toFixed(3)} · 旋转=${(e.angle * 180 / Math.PI).toFixed(1)}° (Y 旋转时 rx=√(a²cos²θ+c²sin²θ))`),
+      line(`中线偏移: |x′(鼻尖)| = ${Math.abs(nose.x).toFixed(3)} (≈ c·sinθ = ${(C * sinTheta).toFixed(3)}，φ=ψ=0 时)`),
+    );
+  } else if (state.headMode === 'loomis') {
+    const Wc = 2 * Math.cos((state.thetaDeg * Math.PI) / 180);
+    fWrap.append(
+      line(`面部平面宽度 W = 2a·cosθ = ${Wc.toFixed(3)} (φ=ψ=0 时，随旋转压缩)`),
+      line(`中轴线偏移: |x′(鼻尖)| = ${Math.abs(nose.x).toFixed(3)} (≈ c·sinθ = ${(C * sinTheta).toFixed(3)})`),
+    );
+  } else {
+    // Bridgman：骨点世界坐标
+    const bones = document.createElement('div');
+    bones.className = 'grid grid-cols-1 gap-x-6 sm:grid-cols-2';
+    for (const bp of bonePoints()) {
+      const p = applyMat3(R, bp.pos);
+      const d = line(
+        `${bp.label} (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)})`,
+        'text-zinc-400',
+      );
+      bones.appendChild(d);
+    }
+    fWrap.append(bones);
+  }
 
-  fWrap.append(line1, line2, line3);
+  fWrap.append(
+    line(
+      state.mode === 'orthographic'
+        ? '投影: 正交 — 取旋转后 (x′, y′)'
+        : `投影: 透视 — (f·x′/(d−z′), f·y′/(d−z′))，f=${state.focal.toFixed(1)}，d=8`,
+      'text-zinc-500',
+    ),
+  );
+
   wrap.appendChild(fWrap);
   el.appendChild(wrap);
 }
