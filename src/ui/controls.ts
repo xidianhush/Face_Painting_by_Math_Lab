@@ -4,11 +4,24 @@ import type { HeadMode, AppState } from '../state';
 import { getState } from '../state';
 import { PRESETS } from '../math/faceParams';
 import type { FaceParams } from '../math/faceParams';
+import { analyzePhoto, loadImageFromFile } from '../mediapipe/adapter';
 
 type PatchFn = (patch: Partial<AppState>) => void;
 
 function byId<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
+}
+
+let toastTimer: number | undefined;
+function showToast(msg: string): void {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.opacity = '1';
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    el.style.opacity = '0';
+  }, 3200);
 }
 
 const MODE_TABS: { mode: HeadMode; id: string }[] = [
@@ -109,6 +122,35 @@ export function initControls(patch: PatchFn, reset: () => void): void {
       if (preset) patch({ faceParams: { ...preset } });
     });
   }
+
+  // 照片检测（Phase 2）
+  byId<HTMLButtonElement>('btn-upload').addEventListener('click', () => byId<HTMLInputElement>('file-photo').click());
+  byId<HTMLButtonElement>('btn-clear-photo').addEventListener('click', () =>
+    patch({ photoMode: false, photoImage: null, photoLandmarks: null, photoDeviation: null }),
+  );
+  byId<HTMLInputElement>('file-photo').addEventListener('change', async (e) => {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const img = await loadImageFromFile(file);
+      const result = await analyzePhoto(img);
+      patch({
+        photoMode: true,
+        photoImage: img,
+        photoLandmarks: result.landmarks,
+        photoDeviation: result.deviation,
+        faceParams: { ...result.params },
+      });
+      document.getElementById('manualParamsPanel')?.setAttribute('open', '');
+      showToast('AI 分析完成，可在下方手动精修');
+    } catch (err) {
+      patch({ photoMode: false, photoImage: null, photoLandmarks: null, photoDeviation: null });
+      showToast(`AI 分析失败：${err instanceof Error ? err.message : '未知错误'}，请手动调节`);
+    } finally {
+      input.value = '';
+    }
+  });
 }
 
 /** 状态 → 控件回显（拖拽 3D 时滑块跟随） */
@@ -192,6 +234,15 @@ export function syncControls(state: AppState): void {
   lineart.classList.toggle('bg-yellow-500/10', state.lineArt);
   lineart.classList.toggle('border-zinc-700', !state.lineArt);
   lineart.classList.toggle('text-zinc-300', !state.lineArt);
+
+  // 照片模式
+  byId<HTMLButtonElement>('btn-clear-photo').classList.toggle('hidden', !state.photoMode);
+  const upload = byId<HTMLButtonElement>('btn-upload');
+  upload.classList.toggle('border-cyan-500', state.photoMode);
+  upload.classList.toggle('text-cyan-300', state.photoMode);
+  upload.classList.toggle('bg-cyan-500/10', state.photoMode);
+  upload.classList.toggle('border-zinc-700', !state.photoMode);
+  upload.classList.toggle('text-zinc-300', !state.photoMode);
 
   // 图例
   byId<HTMLElement>('legend-body').textContent = LEGEND[state.headMode];

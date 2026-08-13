@@ -13,6 +13,7 @@ import { resolveFaceParams } from '../math/faceParams';
 import { chinLinePoints, chinTip, equatorPoints, frontalPlaneOutline, midAxisPoints, sidePlaneOutlines, sphereGridLines } from '../math/loomis';
 import { bonePoints, craniumArc, craniumBase, eyeSockets, faceWedgeCorners, mandibleCorners, muscleLines, nasalCorners } from '../math/bridgman';
 import { outlineEllipseOrtho, outlinePointsPerspective, project } from '../math/project';
+import { LANDMARK_IDX } from '../mediapipe/adapter';
 import type { AppState } from '../state';
 import { applyMat3 } from '../math/types';
 import type { Mat3, Vec3 } from '../math/types';
@@ -132,6 +133,11 @@ export class Projector2D {
       ctx.lineTo(cx, h - 8);
       ctx.stroke();
       ctx.setLineDash([]);
+    }
+
+    if (state.photoMode) {
+      this.drawPhotoOverlay(ctx, state, w, h, col);
+      return;
     }
 
     if (state.headMode === 'santing') this.drawSanting(ctx, state, R, geom, px, col, S);
@@ -322,6 +328,86 @@ export class Projector2D {
         ctx.fill();
       }
     }
+  }
+
+  /** 照片模式：照片半透明底图 + 标准虚线 + 用户实线 + 偏差标注 */
+  private drawPhotoOverlay(
+    ctx: CanvasRenderingContext2D,
+    state: AppState,
+    w: number,
+    h: number,
+    col: (k: string, a: number) => string,
+  ): void {
+    const img = state.photoImage;
+    if (!img) return;
+
+    const scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
+    const iw = img.naturalWidth * scale;
+    const ih = img.naturalHeight * scale;
+    const ix = (w - iw) / 2;
+    const iy = (h - ih) / 2;
+
+    ctx.globalAlpha = 0.35;
+    ctx.drawImage(img, ix, iy, iw, ih);
+    ctx.globalAlpha = 1;
+
+    const lms = state.photoLandmarks;
+    const dev = state.photoDeviation;
+    if (!lms || !dev) return;
+
+    const I = LANDMARK_IDX;
+    const mx = (nx: number) => ix + nx * iw;
+    const my = (ny: number) => iy + ny * ih;
+    const leftX = mx(lms[I.leftCheek].x);
+    const rightX = mx(lms[I.rightCheek].x);
+    const hairlineY = my(lms[I.hairline].y);
+    const chinY = my(lms[I.chin].y);
+    const hLine = (x1: number, y: number, x2: number) => {
+      ctx.beginPath();
+      ctx.moveTo(x1, y);
+      ctx.lineTo(x2, y);
+      ctx.stroke();
+    };
+    const vLine = (x: number, y1: number, y2: number) => {
+      ctx.beginPath();
+      ctx.moveTo(x, y1);
+      ctx.lineTo(x, y2);
+      ctx.stroke();
+    };
+
+    // 标准辅助线（虚线灰）
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = col('grid', 0.6);
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 3; i++) hLine(leftX, hairlineY + ((chinY - hairlineY) * i) / 3, rightX);
+    for (let i = 0; i <= 5; i++) vLine(leftX + ((rightX - leftX) * i) / 5, hairlineY, chinY);
+    ctx.setLineDash([]);
+
+    // 用户实际三庭（实线青）
+    ctx.strokeStyle = col('ting', 0.9);
+    ctx.lineWidth = 1.5;
+    for (const idx of [I.hairline, I.glabella, I.noseBase, I.chin]) {
+      hLine(leftX, my(lms[idx].y), rightX);
+    }
+
+    // 用户实际五眼（眼角竖线，实线白）
+    ctx.strokeStyle = col('yan', 0.9);
+    for (const idx of [I.leftEyeOuter, I.leftEyeInner, I.rightEyeInner, I.rightEyeOuter]) {
+      vLine(mx(lms[idx].x), hairlineY, chinY);
+    }
+
+    // 偏差标注
+    const sign = (v: number) => (v > 0.0005 ? '+' : v < -0.0005 ? '-' : '');
+    const labels = [
+      `上庭: ${sign(dev.upperPct)}${(dev.upperPct * 100).toFixed(0)}%`,
+      `中庭: ${sign(dev.midPct)}${(dev.midPct * 100).toFixed(0)}%`,
+      `下庭: ${sign(dev.lowerPct)}${(dev.lowerPct * 100).toFixed(0)}%`,
+      `眼距: ${dev.eyeDistPct > 0 ? '宽' : '窄'} ${Math.abs(dev.eyeDistPct * 100).toFixed(0)}%`,
+      `脸高宽比: ${dev.userRatios.faceRatio.toFixed(2)}`,
+    ];
+    ctx.fillStyle = col('contour', 1);
+    ctx.font = '12px ui-monospace, SFMono-Regular, Menlo, monospace';
+    labels.forEach((t, i) => ctx.fillText(t, 16, 26 + i * 18));
   }
 
   private drawNoseOffset(

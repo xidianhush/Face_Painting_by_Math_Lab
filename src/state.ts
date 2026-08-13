@@ -3,6 +3,7 @@
 import { buildRotation } from './math/rotations';
 import { DEFAULT_PARAMS } from './math/faceParams';
 import type { FaceParams } from './math/faceParams';
+import type { Deviation } from './mediapipe/adapter';
 import type { ProjectionMode } from './math/project';
 import type { Mat3 } from './math/types';
 
@@ -18,6 +19,11 @@ export interface AppState {
   headMode: HeadMode;
   lineArt: boolean; // 纯线稿模式（白底黑线）
   faceParams: FaceParams; // 个性化面部特征参数
+  // Phase 2 照片检测
+  photoMode: boolean;
+  photoImage: HTMLImageElement | null;
+  photoLandmarks: { x: number; y: number }[] | null;
+  photoDeviation: Deviation | null;
 
   // 通用
   showAxes: boolean;
@@ -52,6 +58,10 @@ export const initialState: AppState = {
   headMode: 'santing',
   lineArt: false,
   faceParams: { ...DEFAULT_PARAMS },
+  photoMode: false,
+  photoImage: null,
+  photoLandmarks: null,
+  photoDeviation: null,
 
   showAxes: true,
   showTing: true,
