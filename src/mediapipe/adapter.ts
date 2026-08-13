@@ -1,9 +1,13 @@
 /**
- * MediaPipe Face Mesh 适配器（懒加载）
- * 上传正面照片 → 468 点检测 → 提取 14 个关键点位 → 计算三庭五眼/脸型比例与偏差 → 映射到 FaceParams
- * 所有失败场景抛错，由调用方降级到手动模式。
+ * MediaPipe Face Mesh 适配器（本地依赖，无运行时 CDN）
+ * - JS/WASM 来自 npm 依赖 @mediapipe/tasks-vision
+ * - WASM 由 public/wasm/ 本地服务
+ * - 模型 public/face_landmarker.task 本地服务
+ * 上传正面照片 → 468 点检测 → 提取关键点位 → 计算三庭五眼/脸型偏差 → 映射到 FaceParams
  */
 
+import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { DEFAULT_PARAMS } from '../math/faceParams';
 import type { FaceParams } from '../math/faceParams';
 
@@ -78,33 +82,28 @@ function withTimeout<T>(p: Promise<T>, ms: number, msg: string): Promise<T> {
   });
 }
 
-let landmarkerPromise: Promise<any> | null = null;
+let landmarkerPromise: Promise<FaceLandmarker> | null = null;
 
-/** 懒加载 FaceLandmarker（单例，8s 超时便于降级） */
-export function loadFaceLandmarker(): Promise<any> {
+/** 懒加载 FaceLandmarker（单例，本地资源） */
+export function loadFaceLandmarker(): Promise<FaceLandmarker> {
   if (!landmarkerPromise) {
     landmarkerPromise = withTimeout(
       (async () => {
-        const visionUrl = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm';
-        const wasmUrl = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm';
-        const modelUrl =
-          'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
-        const vision: any = await import(/* @vite-ignore */ visionUrl);
-        const filesetResolver = await vision.FilesetResolver.forVisionTasks(wasmUrl);
-        return vision.FaceLandmarker.createFromOptions(filesetResolver, {
-          baseOptions: { modelAssetPath: modelUrl, delegate: 'GPU' },
+        const filesetResolver = await FilesetResolver.forVisionTasks('/wasm/');
+        return FaceLandmarker.createFromOptions(filesetResolver, {
+          baseOptions: { modelAssetPath: '/face_landmarker.task', delegate: 'GPU' },
           runningMode: 'IMAGE',
           numFaces: 1,
         });
       })(),
-      8000,
+      20000,
       'AI 模型加载超时',
     );
   }
   return landmarkerPromise;
 }
 
-/** 从图片 URL/对象加载 HTMLImageElement（FileReader 用） */
+/** 从图片文件加载 HTMLImageElement */
 export function loadImageFromFile(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -120,7 +119,7 @@ export function loadImageFromFile(file: File): Promise<HTMLImageElement> {
 
 /** 提取关键距离（像素） */
 export function extractFeatures(
-  lms: Landmark[],
+  lms: NormalizedLandmark[],
   imgWidth: number,
   imgHeight: number,
 ): Features {
@@ -189,13 +188,13 @@ export interface PhotoAnalysis {
 export async function analyzePhoto(image: HTMLImageElement): Promise<PhotoAnalysis> {
   const landmarker = await loadFaceLandmarker();
   const result = landmarker.detect(image);
-  const raw: Landmark[] = result?.faceLandmarks?.[0];
+  const raw = result?.faceLandmarks?.[0];
   if (!raw || raw.length < 468) throw new Error('未检测到正面人脸，请上传清晰正面照');
   const features = extractFeatures(raw, image.naturalWidth, image.naturalHeight);
   const deviation = calculateDeviation(features);
   return {
     params: deviationToParams(deviation, features),
     deviation,
-    landmarks: raw.map((l: Landmark) => ({ x: l.x, y: l.y })),
+    landmarks: raw.map((l) => ({ x: l.x, y: l.y })),
   };
 }
