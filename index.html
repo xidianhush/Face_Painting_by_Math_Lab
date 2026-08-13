@@ -111,6 +111,51 @@
           <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-muscle" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-red-300"></span>力学构造线</label>
         </div>
       </div>
+
+      <!-- 手动参数面板 -->
+      <details id="manualParamsPanel" class="mt-3 rounded-md border border-zinc-800 bg-zinc-900/50 text-zinc-300">
+        <summary class="cursor-pointer select-none px-3 py-2 text-zinc-400">🎚️ 面部特征参数（手动）</summary>
+        <div class="px-3 pb-3">
+          <div class="mb-2 flex flex-wrap items-center gap-2">
+            <span class="text-zinc-500">预设</span>
+            <button data-face-preset="round" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">圆脸</button>
+            <button data-face-preset="square" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">方脸</button>
+            <button data-face-preset="long" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">长脸</button>
+            <button data-face-preset="diamond" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">菱形脸</button>
+            <button data-face-preset="reset" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">重置</button>
+          </div>
+          <div class="grid grid-cols-2 gap-x-6 gap-y-2 md:grid-cols-4">
+            <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+              <span>头长宽比<b id="valHeadRatio" class="float-right font-mono text-cyan-300">0.00</b></span>
+              <input id="paramHeadRatio" type="range" min="-1" max="1" step="0.05" value="0" />
+            </label>
+            <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+              <span>颧骨外扩<b id="valCheekbone" class="float-right font-mono text-cyan-300">1.00</b></span>
+              <input id="paramCheekbone" type="range" min="0.5" max="1.5" step="0.05" value="1" />
+            </label>
+            <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+              <span>下颌宽度<b id="valJawWidth" class="float-right font-mono text-cyan-300">1.00</b></span>
+              <input id="paramJawWidth" type="range" min="0.5" max="1.5" step="0.05" value="1" />
+            </label>
+            <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+              <span>下颌角开合<b id="valJawAngle" class="float-right font-mono text-cyan-300">0.50</b></span>
+              <input id="paramJawAngle" type="range" min="0" max="1" step="0.05" value="0.5" />
+            </label>
+            <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+              <span>眼距系数<b id="valEyeDist" class="float-right font-mono text-cyan-300">1.00</b></span>
+              <input id="paramEyeDist" type="range" min="0.6" max="1.4" step="0.05" value="1" />
+            </label>
+            <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+              <span>鼻子前突<b id="valNosePro" class="float-right font-mono text-cyan-300">1.00</b></span>
+              <input id="paramNosePro" type="range" min="0.5" max="1.5" step="0.05" value="1" />
+            </label>
+            <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+              <span>额头高度<b id="valForehead" class="float-right font-mono text-cyan-300">1.00</b></span>
+              <input id="paramForehead" type="range" min="0.6" max="1.4" step="0.05" value="1" />
+            </label>
+          </div>
+        </div>
+      </details>
     </section>
   </div>
   <script type="module" src="/src/main.ts"></script>

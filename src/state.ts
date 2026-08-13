@@ -1,6 +1,8 @@
 /** 中央状态：单一数据源，任何变更触发全量重绘 */
 
 import { buildRotation } from './math/rotations';
+import { DEFAULT_PARAMS } from './math/faceParams';
+import type { FaceParams } from './math/faceParams';
 import type { ProjectionMode } from './math/project';
 import type { Mat3 } from './math/types';
 
@@ -15,6 +17,7 @@ export interface AppState {
   focal: number; // 透视强度 f
   headMode: HeadMode;
   lineArt: boolean; // 纯线稿模式（白底黑线）
+  faceParams: FaceParams; // 个性化面部特征参数
 
   // 通用
   showAxes: boolean;
@@ -48,6 +51,7 @@ export const initialState: AppState = {
   focal: 10,
   headMode: 'santing',
   lineArt: false,
+  faceParams: { ...DEFAULT_PARAMS },
 
   showAxes: true,
   showTing: true,

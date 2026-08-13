@@ -1,6 +1,6 @@
 /**
  * 2D 投影画布：模拟画家正面视角的画纸
- * 按模式绘制：
+ * 按模式绘制，几何由 faceParams 驱动：
  * - santing：轮廓椭圆 + 三庭环 + 五眼经线 + 中线（含偏移标注）
  * - loomis：经纬网格 + 切平面 + 赤道 + 中轴线轨迹 + 下巴构造
  * - bridgman：块面轮廓 + 骨点 + 力学构造线
@@ -8,7 +8,9 @@
  */
 
 import { buildGuides, NOSE_TIP } from '../math/head';
-import { CHIN_TIP, chinLinePoints, equatorPoints, frontalPlaneOutline, midAxisPoints, sidePlaneOutlines, sphereGridLines } from '../math/loomis';
+import type { EffectiveGeometry } from '../math/head';
+import { resolveFaceParams } from '../math/faceParams';
+import { chinLinePoints, chinTip, equatorPoints, frontalPlaneOutline, midAxisPoints, sidePlaneOutlines, sphereGridLines } from '../math/loomis';
 import { bonePoints, craniumArc, craniumBase, eyeSockets, faceWedgeCorners, mandibleCorners, muscleLines, nasalCorners } from '../math/bridgman';
 import { outlineEllipseOrtho, outlinePointsPerspective, project } from '../math/project';
 import type { AppState } from '../state';
@@ -16,7 +18,7 @@ import { applyMat3 } from '../math/types';
 import type { Mat3, Vec3 } from '../math/types';
 
 /** 固定视图半宽（模型单位），保证「旋转后轮廓变窄」可见而非被自动缩放抹平 */
-const VIEW_HALF = 2.0;
+const VIEW_HALF = 2.2;
 
 type Pt2 = { x: number; y: number };
 type Color = { r: number; g: number; b: number };
@@ -42,7 +44,6 @@ const PALETTE: Record<string, Color> = {
   muscle: { r: 0xfc, g: 0xa5, b: 0xa5 },
 };
 
-/** 颜色映射：lineArt 模式下所有线条/文字转黑 */
 function rgba(c: Color, alpha: number, lineArt: boolean): string {
   const r = lineArt ? 20 : c.r;
   const g = lineArt ? 20 : c.g;
@@ -50,7 +51,6 @@ function rgba(c: Color, alpha: number, lineArt: boolean): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-/** 2D 凸包（单调链） */
 function convexHull2D(pts: Pt2[]): Pt2[] {
   const p = [...pts].sort((a, b) => a.x - b.x || a.y - b.y);
   const cross = (o: Pt2, a: Pt2, b: Pt2) =>
@@ -74,7 +74,6 @@ function convexHull2D(pts: Pt2[]): Pt2[] {
 export class Projector2D {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
-  private guides = buildGuides();
   private lastState: AppState | null = null;
   private lastR: Mat3 | null = null;
 
@@ -94,7 +93,6 @@ export class Projector2D {
     this.canvas.width = Math.round(w * dpr);
     this.canvas.height = Math.round(h * dpr);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // 修复 V1 bug：初始绘制可能发生在布局完成前（尺寸为 0），尺寸就绪后重绘
     if (this.lastState && this.lastR) this.draw(this.lastState, this.lastR);
   }
 
@@ -121,8 +119,8 @@ export class Projector2D {
     const cy = h / 2;
     const px = (p: Pt2) => ({ x: cx + p.x * S, y: cy - p.y * S });
     const col = (key: string, alpha: number) => rgba(PALETTE[key], alpha, state.lineArt);
+    const geom = resolveFaceParams(state.faceParams);
 
-    // 坐标轴（虚线）
     if (state.showAxes) {
       ctx.strokeStyle = col('axes', 0.35);
       ctx.lineWidth = 1;
@@ -136,32 +134,32 @@ export class Projector2D {
       ctx.setLineDash([]);
     }
 
-    if (state.headMode === 'santing') this.drawSanting(ctx, state, R, px, col, S);
-    else if (state.headMode === 'loomis') this.drawLoomis(ctx, state, R, px, col);
-    else this.drawBridgman(ctx, state, R, px, col);
+    if (state.headMode === 'santing') this.drawSanting(ctx, state, R, geom, px, col, S);
+    else if (state.headMode === 'loomis') this.drawLoomis(ctx, state, R, geom, px, col);
+    else this.drawBridgman(ctx, state, R, geom, px, col);
   }
 
-  /** 三庭五眼：轮廓 + 三庭 + 五眼 + 中线偏移 */
   private drawSanting(
     ctx: CanvasRenderingContext2D,
     state: AppState,
     R: Mat3,
+    geom: EffectiveGeometry,
     px: (p: Pt2) => Pt2,
     col: (k: string, a: number) => string,
     S: number,
   ): void {
+    const guides = buildGuides(geom);
     if (state.showContour) {
       ctx.strokeStyle = col('contour', 1);
       ctx.lineWidth = 2;
       if (state.mode === 'orthographic') {
-        const e = outlineEllipseOrtho(R);
+        const e = outlineEllipseOrtho(R, geom.a, geom.b, geom.c);
         const c = px({ x: e.cx, y: e.cy });
         ctx.beginPath();
-        // 屏幕 y 向下：数学角 α → 画布角 -α
         ctx.ellipse(c.x, c.y, e.rx * S, e.ry * S, -e.angle, 0, Math.PI * 2);
         ctx.stroke();
       } else {
-        const pts = outlinePointsPerspective(R, state.focal);
+        const pts = outlinePointsPerspective(R, state.focal, geom.a, geom.b, geom.c);
         ctx.beginPath();
         pts.forEach((p, i) => {
           const q = px(p);
@@ -176,45 +174,45 @@ export class Projector2D {
     if (state.showTing) {
       ctx.strokeStyle = col('ting', 0.9);
       ctx.lineWidth = 1.5;
-      for (const ring of this.guides.ting) this.strokePoints(ring, R, state, px);
+      for (const ring of guides.ting) this.strokePoints(ring, R, state, px);
     }
 
     if (state.showYan) {
       ctx.strokeStyle = col('yan', 0.85);
       ctx.lineWidth = 1.5;
-      for (const mer of this.guides.yan) this.strokePoints(mer, R, state, px);
+      for (const mer of guides.yan) this.strokePoints(mer, R, state, px);
     }
 
     if (state.showMidline) {
       ctx.strokeStyle = col('midline', 1);
       ctx.lineWidth = 1.8;
-      this.strokePoints(this.guides.midline, R, state, px);
+      this.strokePoints(guides.midline, R, state, px);
       this.drawNoseOffset(ctx, R, px, col, 'midline');
     }
   }
 
-  /** Loomis：网格 → 切平面 → 赤道 → 中轴线 → 下巴 */
   private drawLoomis(
     ctx: CanvasRenderingContext2D,
     state: AppState,
     R: Mat3,
+    geom: EffectiveGeometry,
     px: (p: Pt2) => Pt2,
     col: (k: string, a: number) => string,
   ): void {
     if (state.showSphereGrid) {
       ctx.strokeStyle = col('grid', 0.75);
       ctx.lineWidth = 1;
-      for (const line of sphereGridLines()) this.strokePoints(line, R, state, px);
+      for (const line of sphereGridLines(geom)) this.strokePoints(line, R, state, px);
     }
 
     if (state.showSidePlanes) {
       ctx.strokeStyle = col('side', 0.6);
       ctx.lineWidth = 1;
-      for (const rect of sidePlaneOutlines()) this.strokePoints(rect, R, state, px);
+      for (const rect of sidePlaneOutlines(geom)) this.strokePoints(rect, R, state, px);
     }
 
     if (state.showFrontalPlane) {
-      const pts = frontalPlaneOutline().map((p) => px(project(p, R, state.mode, state.focal)));
+      const pts = frontalPlaneOutline(geom).map((p) => px(project(p, R, state.mode, state.focal)));
       ctx.fillStyle = col('frontal', 0.08);
       ctx.strokeStyle = col('frontal', 0.75);
       ctx.lineWidth = 1.5;
@@ -228,14 +226,14 @@ export class Projector2D {
     if (state.showEquator) {
       ctx.strokeStyle = col('equator', 0.95);
       ctx.lineWidth = 1.5;
-      this.strokePoints(equatorPoints(), R, state, px);
+      this.strokePoints(equatorPoints(geom), R, state, px);
     }
 
     if (state.showMidAxis) {
       ctx.strokeStyle = col('midaxis', 1);
       ctx.lineWidth = 1.8;
       ctx.setLineDash([5, 4]);
-      this.strokePoints(midAxisPoints(), R, state, px);
+      this.strokePoints(midAxisPoints(geom), R, state, px);
       ctx.setLineDash([]);
       this.drawNoseOffset(ctx, R, px, col, 'midaxis');
     }
@@ -244,34 +242,34 @@ export class Projector2D {
       ctx.strokeStyle = col('chin', 0.8);
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
-      this.strokePoints(chinLinePoints(), R, state, px);
+      this.strokePoints(chinLinePoints(geom), R, state, px);
       ctx.setLineDash([]);
-      const chin = px(project(CHIN_TIP, R, state.mode, state.focal));
+      const chin = px(project(chinTip(geom), R, state.mode, state.focal));
       ctx.fillStyle = col('chin', 0.9);
       ctx.font = '11px system-ui, sans-serif';
       ctx.fillText('下巴', chin.x + 6, chin.y - 4);
     }
   }
 
-  /** Bridgman：块面轮廓 + 骨点 + 力学线 */
   private drawBridgman(
     ctx: CanvasRenderingContext2D,
     state: AppState,
     R: Mat3,
+    geom: EffectiveGeometry,
     px: (p: Pt2) => Pt2,
     col: (k: string, a: number) => string,
   ): void {
     if (state.showCranium) {
       ctx.strokeStyle = col('cranium', 1);
       ctx.lineWidth = 2;
-      this.strokePoints(craniumArc(), R, state, px);
-      this.strokePoints(craniumBase(), R, state, px);
+      this.strokePoints(craniumArc(geom), R, state, px);
+      this.strokePoints(craniumBase(geom), R, state, px);
     }
 
     const hulls: { pts: Vec3[]; key: string }[] = [];
-    if (state.showFaceWedge) hulls.push({ pts: faceWedgeCorners(), key: 'wedge' });
-    if (state.showMandible) hulls.push({ pts: mandibleCorners(), key: 'mandible' });
-    if (state.showNasal) hulls.push({ pts: nasalCorners(), key: 'nasal' });
+    if (state.showFaceWedge) hulls.push({ pts: faceWedgeCorners(geom), key: 'wedge' });
+    if (state.showMandible) hulls.push({ pts: mandibleCorners(geom), key: 'mandible' });
+    if (state.showNasal) hulls.push({ pts: nasalCorners(geom), key: 'nasal' });
     for (const { pts, key } of hulls) {
       const projected = pts.map((p) => px(project(p, R, state.mode, state.focal)));
       const hull = convexHull2D(projected);
@@ -286,12 +284,12 @@ export class Projector2D {
     if (state.showEyeSockets) {
       ctx.strokeStyle = col('socket', 0.9);
       ctx.lineWidth = 1.5;
-      for (const circle of eyeSockets()) this.strokePoints(circle, R, state, px);
+      for (const circle of eyeSockets(geom)) this.strokePoints(circle, R, state, px);
     }
 
     if (state.showBones) {
       ctx.fillStyle = col('bone', 1);
-      for (const bp of bonePoints()) {
+      for (const bp of bonePoints(geom)) {
         const q = px(project(bp.pos, R, state.mode, state.focal));
         ctx.beginPath();
         ctx.arc(q.x, q.y, 3.5, 0, Math.PI * 2);
@@ -306,7 +304,7 @@ export class Projector2D {
     if (state.showMuscleLines) {
       ctx.strokeStyle = col('muscle', 0.9);
       ctx.lineWidth = 1.5;
-      for (const ml of muscleLines()) {
+      for (const ml of muscleLines(geom)) {
         const a = px(project(ml.from, R, state.mode, state.focal));
         const b = px(project(ml.to, R, state.mode, state.focal));
         ctx.beginPath();
@@ -326,7 +324,6 @@ export class Projector2D {
     }
   }
 
-  /** 中线/中轴线的鼻尖偏移标注（虚线 + 箭头 + 数值） */
   private drawNoseOffset(
     ctx: CanvasRenderingContext2D,
     R: Mat3,
@@ -363,12 +360,7 @@ export class Projector2D {
     ctx.fillText(`偏移 ≈ ${off.toFixed(2)}`, np.x + 6, np.y - 6);
   }
 
-  private strokePoints(
-    pts: Vec3[],
-    R: Mat3,
-    state: AppState,
-    px: (p: Pt2) => Pt2,
-  ): void {
+  private strokePoints(pts: Vec3[], R: Mat3, state: AppState, px: (p: Pt2) => Pt2): void {
     const ctx = this.ctx;
     ctx.beginPath();
     pts.forEach((p, i) => {
@@ -380,7 +372,6 @@ export class Projector2D {
     ctx.stroke();
   }
 
-  /** 导出当前画稿为 PNG */
   exportPNG(): void {
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
     const a = document.createElement('a');

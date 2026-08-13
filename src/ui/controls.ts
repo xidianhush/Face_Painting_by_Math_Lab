@@ -2,6 +2,8 @@
 
 import type { HeadMode, AppState } from '../state';
 import { getState } from '../state';
+import { PRESETS } from '../math/faceParams';
+import type { FaceParams } from '../math/faceParams';
 
 type PatchFn = (patch: Partial<AppState>) => void;
 
@@ -84,6 +86,29 @@ export function initControls(patch: PatchFn, reset: () => void): void {
   byId<HTMLButtonElement>('mode-persp').addEventListener('click', () => patch({ mode: 'perspective' }));
   byId<HTMLButtonElement>('btn-lineart').addEventListener('click', () => patch({ lineArt: !getState().lineArt }));
   byId<HTMLButtonElement>('btn-reset').addEventListener('click', reset);
+
+  // 面部特征参数滑块
+  const faceSlider = (id: string, key: keyof FaceParams) => {
+    byId<HTMLInputElement>(id).addEventListener('input', (e) => {
+      const v = parseFloat((e.currentTarget as HTMLInputElement).value);
+      patch({ faceParams: { ...getState().faceParams, [key]: v } });
+    });
+  };
+  faceSlider('paramHeadRatio', 'headRatio');
+  faceSlider('paramCheekbone', 'cheekboneWidth');
+  faceSlider('paramJawWidth', 'jawWidth');
+  faceSlider('paramJawAngle', 'jawAngle');
+  faceSlider('paramEyeDist', 'eyeDistRatio');
+  faceSlider('paramNosePro', 'noseProtrusion');
+  faceSlider('paramForehead', 'foreheadHeight');
+
+  // 面部预设
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-face-preset]')) {
+    btn.addEventListener('click', () => {
+      const preset = PRESETS[btn.dataset.facePreset!];
+      if (preset) patch({ faceParams: { ...preset } });
+    });
+  }
 }
 
 /** 状态 → 控件回显（拖拽 3D 时滑块跟随） */
@@ -96,6 +121,22 @@ export function syncControls(state: AppState): void {
   byId<HTMLElement>('val-psi').textContent = `${state.psiDeg.toFixed(0)}°`;
   byId<HTMLInputElement>('slider-focal').value = String(state.focal);
   byId<HTMLElement>('val-focal').textContent = state.focal.toFixed(0);
+
+  // 面部特征参数
+  byId<HTMLInputElement>('paramHeadRatio').value = String(state.faceParams.headRatio);
+  byId<HTMLElement>('valHeadRatio').textContent = state.faceParams.headRatio.toFixed(2);
+  byId<HTMLInputElement>('paramCheekbone').value = String(state.faceParams.cheekboneWidth);
+  byId<HTMLElement>('valCheekbone').textContent = state.faceParams.cheekboneWidth.toFixed(2);
+  byId<HTMLInputElement>('paramJawWidth').value = String(state.faceParams.jawWidth);
+  byId<HTMLElement>('valJawWidth').textContent = state.faceParams.jawWidth.toFixed(2);
+  byId<HTMLInputElement>('paramJawAngle').value = String(state.faceParams.jawAngle);
+  byId<HTMLElement>('valJawAngle').textContent = state.faceParams.jawAngle.toFixed(2);
+  byId<HTMLInputElement>('paramEyeDist').value = String(state.faceParams.eyeDistRatio);
+  byId<HTMLElement>('valEyeDist').textContent = state.faceParams.eyeDistRatio.toFixed(2);
+  byId<HTMLInputElement>('paramNosePro').value = String(state.faceParams.noseProtrusion);
+  byId<HTMLElement>('valNosePro').textContent = state.faceParams.noseProtrusion.toFixed(2);
+  byId<HTMLInputElement>('paramForehead').value = String(state.faceParams.foreheadHeight);
+  byId<HTMLElement>('valForehead').textContent = state.faceParams.foreheadHeight.toFixed(2);
 
   // 分模式开关组显隐
   byId<HTMLElement>('toggles-santing').classList.toggle('hidden', state.headMode !== 'santing');

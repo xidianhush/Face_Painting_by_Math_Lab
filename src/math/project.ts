@@ -14,7 +14,6 @@
  *   |u|=1 且 u·w=1（w = D⁻¹Rᵀcam），是一个圆，采样后映射回世界坐标投影。
  */
 
-import { A, B, C } from './head';
 import { applyMat3, cross, diag3, dot, mat3Multiply, normalize, transpose, vec3 } from './types';
 import type { Mat3, Vec3 } from './types';
 
@@ -48,14 +47,14 @@ export interface Ellipse2D {
   angle: number; // 主轴方向角（数学坐标系，y 向上）
 }
 
-/** 正交投影的轮廓椭圆（解析） */
-export function outlineEllipseOrtho(R: Mat3): Ellipse2D {
-  const b00 = R[0] * A;
-  const b01 = R[1] * B;
-  const b02 = R[2] * C;
-  const b10 = R[3] * A;
-  const b11 = R[4] * B;
-  const b12 = R[5] * C;
+/** 正交投影的轮廓椭圆（解析，接收有效半轴 a/b/c） */
+export function outlineEllipseOrtho(R: Mat3, a: number, b: number, c: number): Ellipse2D {
+  const b00 = R[0] * a;
+  const b01 = R[1] * b;
+  const b02 = R[2] * c;
+  const b10 = R[3] * a;
+  const b11 = R[4] * b;
+  const b12 = R[5] * c;
 
   // M = B·Bᵀ（2×2 对称半正定）
   const m00 = b00 * b00 + b01 * b01 + b02 * b02;
@@ -73,15 +72,18 @@ export function outlineEllipseOrtho(R: Mat3): Ellipse2D {
   return { cx: 0, cy: 0, rx: Math.sqrt(l1), ry: Math.sqrt(l2), angle };
 }
 
-/** 透视模式的轮廓采样点（屏幕模型单位） */
+/** 透视模式的轮廓采样点（屏幕模型单位，接收有效半轴 a/b/c） */
 export function outlinePointsPerspective(
   R: Mat3,
   focal: number,
+  a: number,
+  b: number,
+  c: number,
   segments = 160,
 ): { x: number; y: number }[] {
   const cam = vec3(0, 0, CAMERA_DISTANCE);
   // w = D⁻¹·Rᵀ·cam
-  const w = applyMat3(mat3Multiply(diag3(1 / A, 1 / B, 1 / C), transpose(R)), cam);
+  const w = applyMat3(mat3Multiply(diag3(1 / a, 1 / b, 1 / c), transpose(R)), cam);
   const w2 = dot(w, w);
   if (w2 < 1.0001) return [];
 
@@ -92,7 +94,7 @@ export function outlinePointsPerspective(
   const e1 = normalize(cross(w, ref));
   const e2 = normalize(cross(w, e1));
 
-  const RD = mat3Multiply(R, diag3(A, B, C));
+  const RD = mat3Multiply(R, diag3(a, b, c));
   const out: { x: number; y: number }[] = [];
   for (let i = 0; i < segments; i++) {
     const t = (i / segments) * Math.PI * 2;

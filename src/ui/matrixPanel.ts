@@ -1,6 +1,7 @@
 /** 矩阵条：R 矩阵（公共）+ 分模式关键公式 */
 
 import { NOSE_TIP, C } from '../math/head';
+import { resolveFaceParams } from '../math/faceParams';
 import { bonePoints } from '../math/bridgman';
 import { outlineEllipseOrtho } from '../math/project';
 import type { AppState } from '../state';
@@ -52,15 +53,16 @@ export function renderMatrix(el: HTMLElement, state: AppState, R: Mat3): void {
 
   const nose = applyMat3(R, NOSE_TIP);
   const sinTheta = Math.sin((state.thetaDeg * Math.PI) / 180);
+  const geom = resolveFaceParams(state.faceParams);
 
   if (state.headMode === 'santing') {
-    const e = outlineEllipseOrtho(R);
+    const e = outlineEllipseOrtho(R, geom.a, geom.b, geom.c);
     fWrap.append(
       line(`轮廓椭圆: rx=${e.rx.toFixed(3)} · ry=${e.ry.toFixed(3)} · 旋转=${(e.angle * 180 / Math.PI).toFixed(1)}° (Y 旋转时 rx=√(a²cos²θ+c²sin²θ))`),
       line(`中线偏移: |x′(鼻尖)| = ${Math.abs(nose.x).toFixed(3)} (≈ c·sinθ = ${(C * sinTheta).toFixed(3)}，φ=ψ=0 时)`),
     );
   } else if (state.headMode === 'loomis') {
-    const Wc = 2 * Math.cos((state.thetaDeg * Math.PI) / 180);
+    const Wc = 2 * geom.a * Math.cos((state.thetaDeg * Math.PI) / 180);
     fWrap.append(
       line(`面部平面宽度 W = 2a·cosθ = ${Wc.toFixed(3)} (φ=ψ=0 时，随旋转压缩)`),
       line(`中轴线偏移: |x′(鼻尖)| = ${Math.abs(nose.x).toFixed(3)} (≈ c·sinθ = ${(C * sinTheta).toFixed(3)})`),
@@ -69,7 +71,7 @@ export function renderMatrix(el: HTMLElement, state: AppState, R: Mat3): void {
     // Bridgman：骨点世界坐标
     const bones = document.createElement('div');
     bones.className = 'grid grid-cols-1 gap-x-6 sm:grid-cols-2';
-    for (const bp of bonePoints()) {
+    for (const bp of bonePoints(geom)) {
       const p = applyMat3(R, bp.pos);
       const d = line(
         `${bp.label} (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)})`,
@@ -81,6 +83,10 @@ export function renderMatrix(el: HTMLElement, state: AppState, R: Mat3): void {
   }
 
   fWrap.append(
+    line(
+      `有效几何: a_eff=${geom.a.toFixed(3)} · b_eff=${geom.b.toFixed(3)} · c=${geom.c.toFixed(3)}`,
+      'text-cyan-300/80',
+    ),
     line(
       state.mode === 'orthographic'
         ? '投影: 正交 — 取旋转后 (x′, y′)'
