@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FaceAngle Lab · 人脸角度绘画辅助工具</title>
+</head>
+<body>
+  <div id="app" class="flex min-h-screen flex-col md:h-screen">
+    <!-- 顶栏 -->
+    <header class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 bg-zinc-950 px-4 py-2">
+      <h1 class="text-sm font-semibold tracking-wide text-zinc-100">
+        FaceAngle Lab
+        <span class="ml-2 text-xs font-normal text-zinc-500">人脸角度 · 线性代数绘画法</span>
+      </h1>
+      <div class="flex items-center gap-1.5 text-xs">
+        <button id="mode-ortho" class="rounded-md border px-3 py-1 transition hover:border-zinc-500">正交</button>
+        <button id="mode-persp" class="rounded-md border border-zinc-700 px-3 py-1 text-zinc-300 transition hover:border-zinc-500">透视</button>
+        <span class="mx-1 h-4 w-px bg-zinc-800"></span>
+        <button id="btn-reset" class="rounded-md border border-zinc-700 px-3 py-1 text-zinc-300 transition hover:border-zinc-500">重置</button>
+        <button id="btn-export" class="rounded-md bg-cyan-600 px-3 py-1 font-medium text-white transition hover:bg-cyan-500">导出 PNG</button>
+      </div>
+    </header>
+
+    <!-- 主视口 -->
+    <main class="grid min-h-0 flex-1 grid-cols-1 gap-px bg-zinc-800 md:grid-cols-2">
+      <section id="viewport-3d" class="relative min-h-[320px] touch-none select-none bg-zinc-950 md:min-h-0">
+        <div class="pointer-events-none absolute left-3 top-3 z-10 text-[11px] text-zinc-500">3D 视口 · 拖拽旋转人脸</div>
+      </section>
+      <section class="relative min-h-[320px] bg-zinc-950 md:min-h-0">
+        <canvas id="canvas-2d" class="block h-full w-full"></canvas>
+        <div class="pointer-events-none absolute left-3 top-3 z-10 text-[11px] text-zinc-500">2D 投影 · 画家正面视角</div>
+        <div id="canvas-mode-tag" class="pointer-events-none absolute right-3 top-3 z-10 rounded bg-zinc-900/80 px-2 py-0.5 text-[11px] text-cyan-300"></div>
+      </section>
+    </main>
+
+    <!-- 矩阵条 -->
+    <section id="matrix-panel" class="border-t border-zinc-800 bg-zinc-950 px-4 py-2 text-[12px] leading-relaxed"></section>
+
+    <!-- 控制面板 -->
+    <section class="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-zinc-800 bg-zinc-950 px-4 py-3 md:grid-cols-6">
+      <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+        <span>Y 轴旋转 θ（Yaw）<b id="val-theta" class="float-right font-mono text-cyan-300">0°</b></span>
+        <input id="slider-theta" type="range" min="-180" max="180" step="0.5" value="0" />
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+        <span>X 轴旋转 φ（Pitch）<b id="val-phi" class="float-right font-mono text-cyan-300">0°</b></span>
+        <input id="slider-phi" type="range" min="-90" max="90" step="0.5" value="0" />
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+        <span>Z 轴旋转 ψ（Roll）<b id="val-psi" class="float-right font-mono text-cyan-300">0°</b></span>
+        <input id="slider-psi" type="range" min="-180" max="180" step="0.5" value="0" />
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+        <span>透视强度 f<b id="val-focal" class="float-right font-mono text-cyan-300">10</b></span>
+        <input id="slider-focal" type="range" min="4" max="24" step="0.5" value="10" />
+      </label>
+      <div class="col-span-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-zinc-300 md:col-span-1">
+        <span class="col-span-2 mb-0.5 text-zinc-500">辅助线显示</span>
+        <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-ting" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-cyan-400"></span>三庭线</label>
+        <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-yan" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-zinc-300"></span>五眼线</label>
+        <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-midline" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-rose-400"></span>中线</label>
+        <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-contour" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-yellow-400"></span>轮廓椭圆</label>
+        <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-axes" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-zinc-500"></span>坐标轴</label>
+      </div>
+    </section>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
