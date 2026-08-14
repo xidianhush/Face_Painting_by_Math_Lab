@@ -63,7 +63,7 @@ export function initControls(patch: PatchFn, reset: () => void): void {
 
   const toggle = (
     id: string,
-    key: 'showTing' | 'showYan' | 'showMidline' | 'showContour' | 'showAxes' | 'showSphereGrid' | 'showFrontalPlane' | 'showSidePlanes' | 'showEquator' | 'showMidAxis' | 'showChinLine' | 'showCranium' | 'showFaceWedge' | 'showMandible' | 'showEyeSockets' | 'showNasal' | 'showBones' | 'showMuscleLines',
+    key: 'showTing' | 'showYan' | 'showMidline' | 'showContour' | 'showJawGuide' | 'showAxes' | 'showSphereGrid' | 'showFrontalPlane' | 'showSidePlanes' | 'showEquator' | 'showMidAxis' | 'showChinLine' | 'showCranium' | 'showFaceWedge' | 'showMandible' | 'showEyeSockets' | 'showNasal' | 'showBones' | 'showMuscleLines',
   ) => {
     byId<HTMLInputElement>(id).addEventListener('change', (e) => {
       patch({ [key]: (e.currentTarget as HTMLInputElement).checked } as Partial<AppState>);
@@ -74,6 +74,7 @@ export function initControls(patch: PatchFn, reset: () => void): void {
   toggle('tg-yan', 'showYan');
   toggle('tg-midline', 'showMidline');
   toggle('tg-contour', 'showContour');
+  toggle('tg-jaw-guide', 'showJawGuide');
   toggle('tg-grid', 'showSphereGrid');
   toggle('tg-frontal', 'showFrontalPlane');
   toggle('tg-side', 'showSidePlanes');
@@ -110,6 +111,7 @@ export function initControls(patch: PatchFn, reset: () => void): void {
   faceSlider('paramHeadRatio', 'headRatio');
   faceSlider('paramCheekbone', 'cheekboneWidth');
   faceSlider('paramJawWidth', 'jawWidth');
+  faceSlider('paramJawTaper', 'jawTaper');
   faceSlider('paramJawAngle', 'jawAngle');
   faceSlider('paramEyeDist', 'eyeDistRatio');
   faceSlider('paramNosePro', 'noseProtrusion');
@@ -171,6 +173,8 @@ export function syncControls(state: AppState): void {
   byId<HTMLElement>('valCheekbone').textContent = state.faceParams.cheekboneWidth.toFixed(2);
   byId<HTMLInputElement>('paramJawWidth').value = String(state.faceParams.jawWidth);
   byId<HTMLElement>('valJawWidth').textContent = state.faceParams.jawWidth.toFixed(2);
+  byId<HTMLInputElement>('paramJawTaper').value = String(state.faceParams.jawTaper);
+  byId<HTMLElement>('valJawTaper').textContent = state.faceParams.jawTaper.toFixed(2);
   byId<HTMLInputElement>('paramJawAngle').value = String(state.faceParams.jawAngle);
   byId<HTMLElement>('valJawAngle').textContent = state.faceParams.jawAngle.toFixed(2);
   byId<HTMLInputElement>('paramEyeDist').value = String(state.faceParams.eyeDistRatio);
@@ -193,6 +197,7 @@ export function syncControls(state: AppState): void {
   setCheck('tg-yan', state.showYan);
   setCheck('tg-midline', state.showMidline);
   setCheck('tg-contour', state.showContour);
+  setCheck('tg-jaw-guide', state.showJawGuide);
   setCheck('tg-grid', state.showSphereGrid);
   setCheck('tg-frontal', state.showFrontalPlane);
   setCheck('tg-side', state.showSidePlanes);

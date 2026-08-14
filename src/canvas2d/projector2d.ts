@@ -12,6 +12,7 @@ import type { EffectiveGeometry } from '../math/head';
 import { resolveFaceParams } from '../math/faceParams';
 import { chinLinePoints, chinTip, equatorPoints, frontalPlaneOutline, midAxisPoints, sidePlaneOutlines, sphereGridLines } from '../math/loomis';
 import { bonePoints, craniumArc, craniumBase, eyeSockets, faceWedgeCorners, mandibleCorners, muscleLines, nasalCorners } from '../math/bridgman';
+import { buildJawGuide } from '../math/jawGuide';
 import { outlineEllipseOrtho, outlinePointsPerspective, project } from '../math/project';
 import { LANDMARK_IDX } from '../mediapipe/adapter';
 import type { AppState } from '../state';
@@ -43,6 +44,7 @@ const PALETTE: Record<string, Color> = {
   nasal: { r: 0xfd, g: 0xe0, b: 0x47 },
   bone: { r: 0xfb, g: 0xbf, b: 0x24 },
   muscle: { r: 0xfc, g: 0xa5, b: 0xa5 },
+  jaw: { r: 0xd9, g: 0x46, b: 0xef },
 };
 
 function rgba(c: Color, alpha: number, lineArt: boolean): string {
@@ -194,6 +196,20 @@ export class Projector2D {
       ctx.lineWidth = 1.8;
       this.strokePoints(guides.midline, R, state, px);
       this.drawNoseOffset(ctx, R, px, col, 'midline');
+    }
+
+    // 下颌构造线（粉紫）
+    if (state.showJawGuide) {
+      const jaw = buildJawGuide(geom);
+      ctx.strokeStyle = col('jaw', 0.9);
+      ctx.lineWidth = 1.8;
+      this.strokePoints(jaw.left, R, state, px);
+      this.strokePoints(jaw.right, R, state, px);
+      const chinPx = px(project(jaw.chin, R, state.mode, state.focal));
+      ctx.fillStyle = col('jaw', 1);
+      ctx.beginPath();
+      ctx.arc(chinPx.x, chinPx.y, 3, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
@@ -394,6 +410,37 @@ export class Projector2D {
     ctx.strokeStyle = col('yan', 0.9);
     for (const idx of [I.leftEyeOuter, I.leftEyeInner, I.rightEyeInner, I.rightEyeOuter]) {
       vLine(mx(lms[idx].x), hairlineY, chinY);
+    }
+
+    // 下颌构造线对比：标准（虚线灰）vs 用户（实线粉紫）
+    if (state.showJawGuide) {
+      const jawL = { x: mx(lms[I.leftJaw].x), y: my(lms[I.leftJaw].y) };
+      const jawR = { x: mx(lms[I.rightJaw].x), y: my(lms[I.rightJaw].y) };
+      const chinPt = { x: mx(lms[I.chin].x), y: my(lms[I.chin].y) };
+      const cheekCx = (mx(lms[I.leftCheek].x) + mx(lms[I.rightCheek].x)) / 2;
+      const cheekHalf = (mx(lms[I.rightCheek].x) - mx(lms[I.leftCheek].x)) / 2;
+      const stdHalf = cheekHalf * 0.75; // 标准 taper=0.5 → widthFactor 0.75
+      const stdY = jawL.y;
+
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = col('grid', 0.6);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cheekCx - stdHalf, stdY);
+      ctx.lineTo(chinPt.x, chinPt.y);
+      ctx.moveTo(cheekCx + stdHalf, stdY);
+      ctx.lineTo(chinPt.x, chinPt.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.strokeStyle = col('jaw', 0.9);
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(jawL.x, jawL.y);
+      ctx.lineTo(chinPt.x, chinPt.y);
+      ctx.moveTo(jawR.x, jawR.y);
+      ctx.lineTo(chinPt.x, chinPt.y);
+      ctx.stroke();
     }
 
     // 偏差标注

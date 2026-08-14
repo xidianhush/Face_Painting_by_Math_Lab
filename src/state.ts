@@ -32,6 +32,7 @@ export interface AppState {
   showYan: boolean;
   showMidline: boolean;
   showContour: boolean;
+  showJawGuide: boolean;
   // Loomis
   showSphereGrid: boolean;
   showFrontalPlane: boolean;
@@ -68,6 +69,7 @@ export const initialState: AppState = {
   showYan: true,
   showMidline: true,
   showContour: true,
+  showJawGuide: true,
   showSphereGrid: true,
   showFrontalPlane: true,
   showSidePlanes: true,

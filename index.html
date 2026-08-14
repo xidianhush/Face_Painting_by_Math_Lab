@@ -92,6 +92,7 @@
           <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-yan" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-zinc-300"></span>五眼线</label>
           <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-midline" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-rose-400"></span>中线</label>
           <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-contour" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-yellow-400"></span>轮廓椭圆</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-jaw-guide" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-fuchsia-400"></span>下颌构造线</label>
         </div>
         <div id="toggles-loomis" class="hidden text-zinc-300">
           <span class="mb-0.5 block text-zinc-500">Loomis 图层</span>
@@ -138,6 +139,11 @@
             <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
               <span>下颌宽度<b id="valJawWidth" class="float-right font-mono text-cyan-300">1.00</b></span>
               <input id="paramJawWidth" type="range" min="0.5" max="1.5" step="0.05" value="1" />
+            </label>
+            <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
+              <span>下颌收拢<b id="valJawTaper" class="float-right font-mono text-cyan-300">0.50</b></span>
+              <input id="paramJawTaper" type="range" min="0" max="1" step="0.05" value="0.5" />
+              <span class="text-zinc-500">方脸 ← → 尖脸</span>
             </label>
             <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
               <span>下颌角开合<b id="valJawAngle" class="float-right font-mono text-cyan-300">0.50</b></span>

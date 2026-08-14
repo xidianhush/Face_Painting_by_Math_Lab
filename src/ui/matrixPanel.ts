@@ -60,6 +60,7 @@ export function renderMatrix(el: HTMLElement, state: AppState, R: Mat3): void {
     fWrap.append(
       line(`轮廓椭圆: rx=${e.rx.toFixed(3)} · ry=${e.ry.toFixed(3)} · 旋转=${(e.angle * 180 / Math.PI).toFixed(1)}° (Y 旋转时 rx=√(a²cos²θ+c²sin²θ))`),
       line(`中线偏移: |x′(鼻尖)| = ${Math.abs(nose.x).toFixed(3)} (≈ c·sinθ = ${(C * sinTheta).toFixed(3)}，φ=ψ=0 时)`),
+      line(`下颌构造: X=${geom.jaw.startX.toFixed(3)} · 下巴Z=${geom.jaw.chinZ.toFixed(3)} · 收拢度=${geom.jaw.taper.toFixed(2)}`),
     );
   } else if (state.headMode === 'loomis') {
     const Wc = 2 * geom.a * Math.cos((state.thetaDeg * Math.PI) / 180);

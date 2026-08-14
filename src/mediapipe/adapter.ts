@@ -164,6 +164,12 @@ export function calculateDeviation(features: Features): Deviation {
   };
 }
 
+/** 下颌收拢度：下颌角宽与颧骨宽的比值 → [0,1]（方脸小，尖脸大） */
+export function estimateJawTaper(features: Features): number {
+  const ratio = features.jawWidth / features.cheekWidth;
+  return clamp(1.0 - (ratio - 0.55) / 0.45, 0, 1);
+}
+
 /** 偏差 → FaceParams（输出 clamp 到滑块范围） */
 export function deviationToParams(deviation: Deviation, features: Features): FaceParams {
   return {
@@ -171,6 +177,7 @@ export function deviationToParams(deviation: Deviation, features: Features): Fac
     headRatio: clamp(Math.tanh(deviation.faceRatioPct * 2), -1, 1),
     cheekboneWidth: clamp(1.0 + deviation.cheekToJawPct * 0.5, 0.5, 1.5),
     jawWidth: clamp(1.0 + (features.jawWidth / features.cheekWidth - 1.0), 0.5, 1.5),
+    jawTaper: estimateJawTaper(features),
     eyeDistRatio: clamp(1.0 + deviation.eyeDistPct, 0.6, 1.4),
     foreheadHeight: clamp(1.0 + deviation.upperPct, 0.6, 1.4),
     jawAngle: 0.5,

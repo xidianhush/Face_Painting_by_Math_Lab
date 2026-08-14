@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { buildGuides } from '../math/head';
+import { buildJawGuide } from '../math/jawGuide';
 import type { EffectiveGeometry } from '../math/head';
 import { resolveFaceParams } from '../math/faceParams';
 import { chinLinePoints, equatorPoints, midAxisPoints, sphereGridLines } from '../math/loomis';
@@ -64,6 +65,7 @@ export class Scene3D {
   private tingLines: THREE.LineLoop[] = [];
   private yanLines: THREE.Line[] = [];
   private midline!: THREE.Line;
+  private jawLines: THREE.Line[] = [];
   private gridLines: THREE.Line[] = [];
   private equator!: THREE.LineLoop;
   private midAxis: THREE.Line[] = [];
@@ -167,6 +169,15 @@ export class Scene3D {
     this.midline = new THREE.Line(new THREE.BufferGeometry(), lineMat(0xf87171, 1));
     this.midline.renderOrder = 3;
     this.groups.santing.add(this.midline);
+
+    // 下颌构造线（粉紫 #d946ef）
+    const jawMat = new THREE.LineBasicMaterial({ color: 0xd946ef, transparent: true, opacity: 0.85 });
+    for (let i = 0; i < 2; i++) {
+      const l = new THREE.Line(new THREE.BufferGeometry(), jawMat);
+      l.renderOrder = 3;
+      this.jawLines.push(l);
+      this.groups.santing.add(l);
+    }
 
     // loomis
     for (let i = 0; i < 16; i++) {
@@ -291,6 +302,9 @@ export class Scene3D {
     guides.ting.forEach((ring, i) => setLineGeometry(this.tingLines[i], ring));
     guides.yan.forEach((mer, i) => setLineGeometry(this.yanLines[i], mer));
     setLineGeometry(this.midline, guides.midline);
+    const jawGuide = buildJawGuide(geom);
+    setLineGeometry(this.jawLines[0], jawGuide.left);
+    setLineGeometry(this.jawLines[1], jawGuide.right);
 
     // loomis
     const grid = sphereGridLines(geom);
@@ -381,6 +395,7 @@ export class Scene3D {
     for (const l of this.tingLines) l.visible = state.showTing;
     for (const l of this.yanLines) l.visible = state.showYan;
     this.midline.visible = state.showMidline;
+    for (const l of this.jawLines) l.visible = state.showJawGuide;
     for (const l of this.gridLines) l.visible = state.showSphereGrid;
     this.frontalPlane.visible = state.showFrontalPlane;
     for (const p of this.sidePlanes) p.visible = state.showSidePlanes;

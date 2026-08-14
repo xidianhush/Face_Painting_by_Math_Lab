@@ -26,6 +26,7 @@ export interface EffectiveGeometry {
   frontalZ: number; // 面部平面 Z
   nasalZ: number; // 鼻骨块中心 Z
   mandible: { width: number; height: number; depth: number; angle: number };
+  jaw: { startX: number; startY: number; startZ: number; chinZ: number; taper: number };
 }
 
 /** 高度 y 处的水平环：椭球截面椭圆 (a·k, y, c·k)，k = √(1-(y/b)²) */
