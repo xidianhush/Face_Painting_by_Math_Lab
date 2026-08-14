@@ -36,6 +36,17 @@ const LEGEND: Record<HeadMode, string> = {
   bridgman: '深灰 = 颅骨 · 橙 = 面部楔 · 蓝灰 = 下颌 · 黑 = 眼眶 · 淡黄 = 鼻骨 · 琥珀点 = 骨点 · 粉红 = 力学线',
 };
 
+/** 分步演示：每步逐步开启一层（基准圆 → 十字 → 三庭 → 下颌斜线 → 轮廓 → 五眼 → 中线） */
+const STEPS: Array<Partial<AppState> & { headMode: 'santing' }> = [
+  { headMode: 'santing', showCircle: true, showAxes: false, showTing: false, showYan: false, showMidline: false, showContour: false, showJawGuide: false },
+  { headMode: 'santing', showCircle: true, showAxes: true, showTing: false, showYan: false, showMidline: false, showContour: false, showJawGuide: false },
+  { headMode: 'santing', showCircle: true, showAxes: true, showTing: true, showYan: false, showMidline: false, showContour: false, showJawGuide: false },
+  { headMode: 'santing', showCircle: true, showAxes: true, showTing: true, showYan: false, showMidline: false, showContour: false, showJawGuide: true },
+  { headMode: 'santing', showCircle: true, showAxes: true, showTing: true, showYan: false, showMidline: false, showContour: true, showJawGuide: true },
+  { headMode: 'santing', showCircle: true, showAxes: true, showTing: true, showYan: true, showMidline: false, showContour: true, showJawGuide: true },
+  { headMode: 'santing', showCircle: true, showAxes: true, showTing: true, showYan: true, showMidline: true, showContour: true, showJawGuide: true },
+];
+
 /** θ 角度缓动（400ms ease-out） */
 function tweenTheta(target: number, patch: PatchFn): void {
   const start = getState().thetaDeg;
@@ -63,7 +74,7 @@ export function initControls(patch: PatchFn, reset: () => void): void {
 
   const toggle = (
     id: string,
-    key: 'showTing' | 'showYan' | 'showMidline' | 'showContour' | 'showJawGuide' | 'showAxes' | 'showSphereGrid' | 'showFrontalPlane' | 'showSidePlanes' | 'showEquator' | 'showMidAxis' | 'showChinLine' | 'showCranium' | 'showFaceWedge' | 'showMandible' | 'showEyeSockets' | 'showNasal' | 'showBones' | 'showMuscleLines',
+    key: 'showTing' | 'showYan' | 'showMidline' | 'showContour' | 'showJawGuide' | 'showCircle' | 'showAxes' | 'showSphereGrid' | 'showFrontalPlane' | 'showSidePlanes' | 'showEquator' | 'showMidAxis' | 'showChinLine' | 'showCranium' | 'showFaceWedge' | 'showMandible' | 'showEyeSockets' | 'showNasal' | 'showBones' | 'showMuscleLines',
   ) => {
     byId<HTMLInputElement>(id).addEventListener('change', (e) => {
       patch({ [key]: (e.currentTarget as HTMLInputElement).checked } as Partial<AppState>);
@@ -75,6 +86,7 @@ export function initControls(patch: PatchFn, reset: () => void): void {
   toggle('tg-midline', 'showMidline');
   toggle('tg-contour', 'showContour');
   toggle('tg-jaw-guide', 'showJawGuide');
+  toggle('tg-circle', 'showCircle');
   toggle('tg-grid', 'showSphereGrid');
   toggle('tg-frontal', 'showFrontalPlane');
   toggle('tg-side', 'showSidePlanes');
@@ -122,6 +134,19 @@ export function initControls(patch: PatchFn, reset: () => void): void {
     btn.addEventListener('click', () => {
       const preset = PRESETS[btn.dataset.facePreset!];
       if (preset) patch({ faceParams: { ...preset } });
+    });
+  }
+
+  // 起稿基准：正圆 / 椭圆
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-circle-mode]')) {
+    btn.addEventListener('click', () => patch({ circleMode: btn.dataset.circleMode as 'circle' | 'ellipse' }));
+  }
+
+  // 分步演示
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-step]')) {
+    btn.addEventListener('click', () => {
+      const step = STEPS[parseInt(btn.dataset.step!, 10) - 1];
+      if (step) patch({ ...step });
     });
   }
 
@@ -198,6 +223,7 @@ export function syncControls(state: AppState): void {
   setCheck('tg-midline', state.showMidline);
   setCheck('tg-contour', state.showContour);
   setCheck('tg-jaw-guide', state.showJawGuide);
+  setCheck('tg-circle', state.showCircle);
   setCheck('tg-grid', state.showSphereGrid);
   setCheck('tg-frontal', state.showFrontalPlane);
   setCheck('tg-side', state.showSidePlanes);
@@ -231,6 +257,8 @@ export function syncControls(state: AppState): void {
   };
   setActive(byId<HTMLButtonElement>('mode-ortho'), state.mode === 'orthographic');
   setActive(byId<HTMLButtonElement>('mode-persp'), state.mode === 'perspective');
+  setActive(byId<HTMLButtonElement>('circle-mode-circle'), state.circleMode === 'circle');
+  setActive(byId<HTMLButtonElement>('circle-mode-ellipse'), state.circleMode === 'ellipse');
 
   // 纯线稿
   const lineart = byId<HTMLButtonElement>('btn-lineart');

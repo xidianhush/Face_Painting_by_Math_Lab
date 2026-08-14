@@ -18,6 +18,7 @@ export interface AppState {
   focal: number; // 透视强度 f
   headMode: HeadMode;
   lineArt: boolean; // 纯线稿模式（白底黑线）
+  circleMode: 'circle' | 'ellipse'; // 起稿基准：正圆/椭圆
   faceParams: FaceParams; // 个性化面部特征参数
   // Phase 2 照片检测
   photoMode: boolean;
@@ -33,6 +34,7 @@ export interface AppState {
   showMidline: boolean;
   showContour: boolean;
   showJawGuide: boolean;
+  showCircle: boolean;
   // Loomis
   showSphereGrid: boolean;
   showFrontalPlane: boolean;
@@ -58,6 +60,7 @@ export const initialState: AppState = {
   focal: 10,
   headMode: 'santing',
   lineArt: false,
+  circleMode: 'circle',
   faceParams: { ...DEFAULT_PARAMS },
   photoMode: false,
   photoImage: null,
@@ -70,6 +73,7 @@ export const initialState: AppState = {
   showMidline: true,
   showContour: true,
   showJawGuide: true,
+  showCircle: true,
   showSphereGrid: true,
   showFrontalPlane: true,
   showSidePlanes: true,

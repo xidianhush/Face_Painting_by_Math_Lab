@@ -90,3 +90,20 @@ export function chinLinePoints(geom: EffectiveGeometry): Vec3[] {
 export function chinTip(geom: EffectiveGeometry): Vec3 {
   return { x: 0, y: -geom.b, z: 0 };
 }
+
+/** 起稿基准容器：额平面 z=c·0.95 上的椭圆曲线（正圆 r=b 或椭圆 a×b） */
+export function constructionCirclePoints(
+  geom: EffectiveGeometry,
+  mode: 'circle' | 'ellipse',
+  segments = 96,
+): Vec3[] {
+  const z = geom.c * 0.95;
+  const rx = mode === 'ellipse' ? geom.a : geom.b;
+  const ry = geom.b;
+  const pts: Vec3[] = [];
+  for (let i = 0; i < segments; i++) {
+    const t = (i / segments) * Math.PI * 2;
+    pts.push({ x: rx * Math.cos(t), y: ry * Math.sin(t), z });
+  }
+  return pts;
+}

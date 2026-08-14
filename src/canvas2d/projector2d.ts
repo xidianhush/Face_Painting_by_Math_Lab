@@ -10,7 +10,7 @@
 import { buildGuides, NOSE_TIP } from '../math/head';
 import type { EffectiveGeometry } from '../math/head';
 import { resolveFaceParams } from '../math/faceParams';
-import { chinLinePoints, chinTip, equatorPoints, frontalPlaneOutline, midAxisPoints, sidePlaneOutlines, sphereGridLines } from '../math/loomis';
+import { chinLinePoints, chinTip, constructionCirclePoints, equatorPoints, frontalPlaneOutline, midAxisPoints, sidePlaneOutlines, sphereGridLines } from '../math/loomis';
 import { bonePoints, craniumArc, craniumBase, eyeSockets, faceWedgeCorners, mandibleCorners, muscleLines, nasalCorners } from '../math/bridgman';
 import { buildJawGuide } from '../math/jawGuide';
 import { outlineEllipseOrtho, outlinePointsPerspective, project } from '../math/project';
@@ -45,6 +45,7 @@ const PALETTE: Record<string, Color> = {
   bone: { r: 0xfb, g: 0xbf, b: 0x24 },
   muscle: { r: 0xfc, g: 0xa5, b: 0xa5 },
   jaw: { r: 0xd9, g: 0x46, b: 0xef },
+  circle: { r: 0x94, g: 0xa3, b: 0xb8 },
 };
 
 function rgba(c: Color, alpha: number, lineArt: boolean): string {
@@ -137,6 +138,23 @@ export class Projector2D {
       ctx.setLineDash([]);
     }
 
+    // 起稿基准圆/椭圆（最底层容器）
+    if (state.showCircle && !state.photoMode) {
+      const circlePts = constructionCirclePoints(geom, state.circleMode);
+      ctx.strokeStyle = col('circle', 0.25);
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      circlePts.forEach((p, i) => {
+        const q = px(project(p, R, state.mode, state.focal));
+        if (i === 0) ctx.moveTo(q.x, q.y);
+        else ctx.lineTo(q.x, q.y);
+      });
+      ctx.closePath();
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
     if (state.photoMode) {
       this.drawPhotoOverlay(ctx, state, w, h, col);
       return;
@@ -157,6 +175,44 @@ export class Projector2D {
     S: number,
   ): void {
     const guides = buildGuides(geom);
+
+    // 三庭横线（青）
+    if (state.showTing) {
+      ctx.strokeStyle = col('ting', 0.9);
+      ctx.lineWidth = 1.5;
+      for (const ring of guides.ting) this.strokePoints(ring, R, state, px);
+    }
+
+    // 下颌构造线（粉紫）
+    if (state.showJawGuide) {
+      const jaw = buildJawGuide(geom);
+      ctx.strokeStyle = col('jaw', 0.9);
+      ctx.lineWidth = 1.8;
+      this.strokePoints(jaw.left, R, state, px);
+      this.strokePoints(jaw.right, R, state, px);
+      const chinPx = px(project(jaw.chin, R, state.mode, state.focal));
+      ctx.fillStyle = col('jaw', 1);
+      ctx.beginPath();
+      ctx.arc(chinPx.x, chinPx.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 五眼竖线（白）
+    if (state.showYan) {
+      ctx.strokeStyle = col('yan', 0.85);
+      ctx.lineWidth = 1.5;
+      for (const mer of guides.yan) this.strokePoints(mer, R, state, px);
+    }
+
+    // 中线（红）
+    if (state.showMidline) {
+      ctx.strokeStyle = col('midline', 1);
+      ctx.lineWidth = 1.8;
+      this.strokePoints(guides.midline, R, state, px);
+      this.drawNoseOffset(ctx, R, px, col, 'midline');
+    }
+
+    // 轮廓椭圆（黄，最上层）
     if (state.showContour) {
       ctx.strokeStyle = col('contour', 1);
       ctx.lineWidth = 2;
@@ -177,39 +233,6 @@ export class Projector2D {
         ctx.closePath();
         ctx.stroke();
       }
-    }
-
-    if (state.showTing) {
-      ctx.strokeStyle = col('ting', 0.9);
-      ctx.lineWidth = 1.5;
-      for (const ring of guides.ting) this.strokePoints(ring, R, state, px);
-    }
-
-    if (state.showYan) {
-      ctx.strokeStyle = col('yan', 0.85);
-      ctx.lineWidth = 1.5;
-      for (const mer of guides.yan) this.strokePoints(mer, R, state, px);
-    }
-
-    if (state.showMidline) {
-      ctx.strokeStyle = col('midline', 1);
-      ctx.lineWidth = 1.8;
-      this.strokePoints(guides.midline, R, state, px);
-      this.drawNoseOffset(ctx, R, px, col, 'midline');
-    }
-
-    // 下颌构造线（粉紫）
-    if (state.showJawGuide) {
-      const jaw = buildJawGuide(geom);
-      ctx.strokeStyle = col('jaw', 0.9);
-      ctx.lineWidth = 1.8;
-      this.strokePoints(jaw.left, R, state, px);
-      this.strokePoints(jaw.right, R, state, px);
-      const chinPx = px(project(jaw.chin, R, state.mode, state.focal));
-      ctx.fillStyle = col('jaw', 1);
-      ctx.beginPath();
-      ctx.arc(chinPx.x, chinPx.y, 3, 0, Math.PI * 2);
-      ctx.fill();
     }
   }
 
@@ -441,6 +464,31 @@ export class Projector2D {
       ctx.moveTo(jawR.x, jawR.y);
       ctx.lineTo(chinPt.x, chinPt.y);
       ctx.stroke();
+    }
+
+    // 起稿基准容器叠加 + 提示
+    if (state.showCircle) {
+      const ccx = (leftX + rightX) / 2;
+      const ccy = (hairlineY + chinY) / 2;
+      const rx = state.circleMode === 'ellipse' ? (rightX - leftX) / 2 : (chinY - hairlineY) / 2;
+      const ry = (chinY - hairlineY) / 2;
+      ctx.strokeStyle = col('circle', 0.35);
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.ellipse(ccx, ccy, rx, ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const hint =
+        state.faceParams.headRatio > 0.05
+          ? '建议起稿基准用竖椭圆'
+          : state.faceParams.headRatio < -0.05
+            ? '建议起稿基准用横椭圆'
+            : '起稿基准：正圆';
+      ctx.fillStyle = col('circle', 0.85);
+      ctx.font = '12px ui-monospace, monospace';
+      ctx.fillText(hint, 16, 122);
     }
 
     // 偏差标注

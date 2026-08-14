@@ -61,6 +61,18 @@
         <button data-preset="90" class="rounded-md border border-zinc-700 px-2.5 py-1 text-zinc-300 transition hover:border-zinc-500">正侧 90°</button>
       </div>
 
+      <!-- 分步演示 -->
+      <div class="mb-3 flex flex-wrap items-center gap-2">
+        <span class="text-zinc-500">分步演示</span>
+        <button data-step="1" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">Step 1 画圆</button>
+        <button data-step="2" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">Step 2 分两半</button>
+        <button data-step="3" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">Step 3 定三庭</button>
+        <button data-step="4" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">Step 4 画斜线</button>
+        <button data-step="5" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">Step 5 画脸型</button>
+        <button data-step="6" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">Step 6 定五眼</button>
+        <button data-step="7" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">Step 7 细化</button>
+      </div>
+
       <!-- 滑块 -->
       <div class="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-5">
         <label class="flex flex-col gap-1 text-[11px] text-zinc-400">
@@ -93,6 +105,7 @@
           <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-midline" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-rose-400"></span>中线</label>
           <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-contour" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-yellow-400"></span>轮廓椭圆</label>
           <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-jaw-guide" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-fuchsia-400"></span>下颌构造线</label>
+          <label class="flex cursor-pointer items-center gap-1.5"><input id="tg-circle" type="checkbox" checked /><span class="h-2 w-2 rounded-full bg-slate-400"></span>基准圆</label>
         </div>
         <div id="toggles-loomis" class="hidden text-zinc-300">
           <span class="mb-0.5 block text-zinc-500">Loomis 图层</span>
@@ -126,6 +139,11 @@
             <button data-face-preset="long" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">长脸</button>
             <button data-face-preset="diamond" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">菱形脸</button>
             <button data-face-preset="reset" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">重置</button>
+          </div>
+          <div class="mb-2 flex flex-wrap items-center gap-2">
+            <span class="text-zinc-500">起稿基准</span>
+            <button id="circle-mode-circle" data-circle-mode="circle" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">正圆</button>
+            <button id="circle-mode-ellipse" data-circle-mode="ellipse" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">椭圆</button>
           </div>
           <div class="grid grid-cols-2 gap-x-6 gap-y-2 md:grid-cols-4">
             <label class="flex flex-col gap-1 text-[11px] text-zinc-400">

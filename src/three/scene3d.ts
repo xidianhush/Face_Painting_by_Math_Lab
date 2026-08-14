@@ -15,7 +15,7 @@ import { buildGuides } from '../math/head';
 import { buildJawGuide } from '../math/jawGuide';
 import type { EffectiveGeometry } from '../math/head';
 import { resolveFaceParams } from '../math/faceParams';
-import { chinLinePoints, equatorPoints, midAxisPoints, sphereGridLines } from '../math/loomis';
+import { chinLinePoints, constructionCirclePoints, equatorPoints, midAxisPoints, sphereGridLines } from '../math/loomis';
 import { bonePoints, muscleLines } from '../math/bridgman';
 import { degToRad } from '../math/rotations';
 import type { HeadMode, AppState } from '../state';
@@ -66,6 +66,7 @@ export class Scene3D {
   private yanLines: THREE.Line[] = [];
   private midline!: THREE.Line;
   private jawLines: THREE.Line[] = [];
+  private circle!: THREE.LineLoop;
   private gridLines: THREE.Line[] = [];
   private equator!: THREE.LineLoop;
   private midAxis: THREE.Line[] = [];
@@ -104,6 +105,15 @@ export class Scene3D {
     this.scene.add(this.head);
 
     this.buildStatic();
+
+    // 起稿基准圆（模式无关，随 head 旋转）
+    this.circle = new THREE.LineLoop(
+      new THREE.BufferGeometry(),
+      new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.3 }),
+    );
+    this.circle.renderOrder = 0;
+    this.head.add(this.circle);
+
     this.axes = new THREE.AxesHelper(2.4);
     this.scene.add(this.axes);
 
@@ -295,7 +305,9 @@ export class Scene3D {
   }
 
   /** 按有效几何更新网格 scale/position、线几何、骨点位置、力学箭头 */
-  private applyGeom(geom: EffectiveGeometry): void {
+  private applyGeom(geom: EffectiveGeometry, circleMode: 'circle' | 'ellipse'): void {
+    setLineGeometry(this.circle, constructionCirclePoints(geom, circleMode));
+
     // santing 网格 + 辅助线
     this.mesh.scale.set(geom.a, geom.b, geom.c);
     const guides = buildGuides(geom);
@@ -380,10 +392,10 @@ export class Scene3D {
       degToRad(state.psiDeg),
     );
 
-    // 仅当参数变化时重建几何
-    const key = JSON.stringify(state.faceParams);
+    // 仅当参数或基准圆模式变化时重建几何
+    const key = JSON.stringify({ p: state.faceParams, cm: state.circleMode });
     if (key !== this.lastGeomKey) {
-      this.applyGeom(resolveFaceParams(state.faceParams));
+      this.applyGeom(resolveFaceParams(state.faceParams), state.circleMode);
       this.lastGeomKey = key;
     }
 
@@ -391,6 +403,7 @@ export class Scene3D {
     this.groups.loomis.visible = state.headMode === 'loomis';
     this.groups.bridgman.visible = state.headMode === 'bridgman';
     this.axes.visible = state.showAxes;
+    this.circle.visible = state.showCircle;
 
     for (const l of this.tingLines) l.visible = state.showTing;
     for (const l of this.yanLines) l.visible = state.showYan;
