@@ -20,6 +20,7 @@ import { bonePoints, muscleLines } from '../math/bridgman';
 import { degToRad } from '../math/rotations';
 import type { HeadMode, AppState } from '../state';
 import type { Vec3 } from '../math/types';
+import type { DECAMesh } from '../mesh/meshTypes';
 
 export interface DragHandler {
   (dThetaDeg: number, dPhiDeg: number): void;
@@ -50,6 +51,12 @@ export class Scene3D {
   private lastX = 0;
   private lastY = 0;
   private lastGeomKey = '';
+
+  // V3.0 真实 Mesh（DECA 重建）
+  private decaGroup = new THREE.Group();
+  private decaSolid: THREE.Mesh | null = null;
+  private decaWire: THREE.LineSegments | null = null;
+  private lastMeshData: DECAMesh | null = null;
 
   // 网格/块面（单位几何，update 里 scale/position）
   private mesh!: THREE.Mesh;
@@ -103,6 +110,13 @@ export class Scene3D {
     };
     for (const g of Object.values(this.groups)) this.head.add(g);
     this.scene.add(this.head);
+
+    // V3.0 真实 Mesh 组（有 meshData 时显示）+ 光照
+    this.head.add(this.decaGroup);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
+    dirLight.position.set(3, 5, 4);
+    this.scene.add(dirLight);
 
     this.buildStatic();
 
@@ -372,6 +386,60 @@ export class Scene3D {
     });
   }
 
+  /** 用 DECA 重建的真实 Mesh 替换理想椭球（归一化到现有头部尺寸） */
+  private setMeshData(meshData: DECAMesh): void {
+    this.clearMeshData();
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(meshData.vertices, 3));
+    geo.setIndex(new THREE.BufferAttribute(meshData.faces, 1));
+    geo.computeVertexNormals();
+
+    // 平移到中心 + 缩放，使头高约为 2.6（对应现有 b=1.3）
+    geo.computeBoundingBox();
+    const bb = geo.boundingBox!;
+    const center = bb.getCenter(new THREE.Vector3());
+    const size = bb.getSize(new THREE.Vector3());
+    const scale = 2.6 / Math.max(size.y, 0.001);
+    geo.translate(-center.x, -center.y, -center.z);
+    geo.scale(scale, scale, scale);
+
+    this.decaSolid = new THREE.Mesh(
+      geo,
+      new THREE.MeshPhongMaterial({
+        color: 0xd9a58f,
+        specular: 0x333333,
+        shininess: 24,
+        transparent: true,
+        opacity: 0.72,
+        side: THREE.DoubleSide,
+        flatShading: true,
+      }),
+    );
+    this.decaGroup.add(this.decaSolid);
+
+    this.decaWire = new THREE.LineSegments(
+      new THREE.WireframeGeometry(geo),
+      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12 }),
+    );
+    this.decaGroup.add(this.decaWire);
+  }
+
+  private clearMeshData(): void {
+    if (this.decaSolid) {
+      this.decaGroup.remove(this.decaSolid);
+      this.decaSolid.geometry.dispose();
+      (this.decaSolid.material as THREE.Material).dispose();
+      this.decaSolid = null;
+    }
+    if (this.decaWire) {
+      this.decaGroup.remove(this.decaWire);
+      this.decaWire.geometry.dispose();
+      (this.decaWire.material as THREE.Material).dispose();
+      this.decaWire = null;
+    }
+  }
+
   private resize(): void {
     const container = this.renderer.domElement.parentElement;
     if (!container) return;
@@ -399,11 +467,22 @@ export class Scene3D {
       this.lastGeomKey = key;
     }
 
-    this.groups.santing.visible = state.headMode === 'santing';
-    this.groups.loomis.visible = state.headMode === 'loomis';
-    this.groups.bridgman.visible = state.headMode === 'bridgman';
+    // V3.0 真实 Mesh：有 meshData 时显示真实人头并隐藏理想几何，否则显示理想模式
+    const hasMesh = !!state.meshData;
+    if (state.meshData && state.meshData !== this.lastMeshData) {
+      this.setMeshData(state.meshData);
+      this.lastMeshData = state.meshData;
+    } else if (!state.meshData && this.lastMeshData) {
+      this.clearMeshData();
+      this.lastMeshData = null;
+    }
+    this.decaGroup.visible = hasMesh;
+
+    this.groups.santing.visible = !hasMesh && state.headMode === 'santing';
+    this.groups.loomis.visible = !hasMesh && state.headMode === 'loomis';
+    this.groups.bridgman.visible = !hasMesh && state.headMode === 'bridgman';
     this.axes.visible = state.showAxes;
-    this.circle.visible = state.showCircle;
+    this.circle.visible = !hasMesh && state.showCircle;
 
     for (const l of this.tingLines) l.visible = state.showTing;
     for (const l of this.yanLines) l.visible = state.showYan;

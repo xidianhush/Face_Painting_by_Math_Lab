@@ -4,7 +4,7 @@ import type { HeadMode, AppState } from '../state';
 import { getState } from '../state';
 import { PRESETS } from '../math/faceParams';
 import type { FaceParams } from '../math/faceParams';
-import { analyzePhoto, loadImageFromFile } from '../mediapipe/adapter';
+import { reconstructFromPhoto } from '../mesh/api';
 
 type PatchFn = (patch: Partial<AppState>) => void;
 
@@ -150,30 +150,24 @@ export function initControls(patch: PatchFn, reset: () => void): void {
     });
   }
 
-  // 照片检测（Phase 2）
+  // 照片重建（V3.0：上传 → 后端 DECA → 真实 Mesh）
   byId<HTMLButtonElement>('btn-upload').addEventListener('click', () => byId<HTMLInputElement>('file-photo').click());
   byId<HTMLButtonElement>('btn-clear-photo').addEventListener('click', () =>
-    patch({ photoMode: false, photoImage: null, photoLandmarks: null, photoDeviation: null }),
+    patch({ meshData: null, photoMode: false, photoImage: null, photoLandmarks: null, photoDeviation: null }),
   );
   byId<HTMLInputElement>('file-photo').addEventListener('change', async (e) => {
     const input = e.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
     try {
-      const img = await loadImageFromFile(file);
-      const result = await analyzePhoto(img);
-      patch({
-        photoMode: true,
-        photoImage: img,
-        photoLandmarks: result.landmarks,
-        photoDeviation: result.deviation,
-        faceParams: { ...result.params },
-      });
-      document.getElementById('manualParamsPanel')?.setAttribute('open', '');
-      showToast('AI 分析完成，可在下方手动精修');
+      patch({ isLoading: true });
+      showToast('正在重建真实 3D 人脸，请稍候…');
+      const mesh = await reconstructFromPhoto(file);
+      patch({ meshData: mesh, isLoading: false });
+      showToast(`重建完成：${mesh.vertexCount} 顶点 / ${mesh.faceCount} 面`);
     } catch (err) {
-      patch({ photoMode: false, photoImage: null, photoLandmarks: null, photoDeviation: null });
-      showToast(`AI 分析失败：${err instanceof Error ? err.message : '未知错误'}，请手动调节`);
+      patch({ isLoading: false, meshData: null });
+      showToast(`重建失败：${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       input.value = '';
     }
@@ -268,14 +262,15 @@ export function syncControls(state: AppState): void {
   lineart.classList.toggle('border-zinc-700', !state.lineArt);
   lineart.classList.toggle('text-zinc-300', !state.lineArt);
 
-  // 照片模式
-  byId<HTMLButtonElement>('btn-clear-photo').classList.toggle('hidden', !state.photoMode);
+  // 照片重建模式（有真实 Mesh 时高亮上传键、显示清除键）
+  const hasMesh = !!state.meshData;
+  byId<HTMLButtonElement>('btn-clear-photo').classList.toggle('hidden', !hasMesh);
   const upload = byId<HTMLButtonElement>('btn-upload');
-  upload.classList.toggle('border-cyan-500', state.photoMode);
-  upload.classList.toggle('text-cyan-300', state.photoMode);
-  upload.classList.toggle('bg-cyan-500/10', state.photoMode);
-  upload.classList.toggle('border-zinc-700', !state.photoMode);
-  upload.classList.toggle('text-zinc-300', !state.photoMode);
+  upload.classList.toggle('border-cyan-500', hasMesh);
+  upload.classList.toggle('text-cyan-300', hasMesh);
+  upload.classList.toggle('bg-cyan-500/10', hasMesh);
+  upload.classList.toggle('border-zinc-700', !hasMesh);
+  upload.classList.toggle('text-zinc-300', !hasMesh);
 
   // 图例
   byId<HTMLElement>('legend-body').textContent = LEGEND[state.headMode];

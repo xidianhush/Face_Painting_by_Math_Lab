@@ -6,6 +6,7 @@ import type { FaceParams } from './math/faceParams';
 import type { Deviation } from './mediapipe/adapter';
 import type { ProjectionMode } from './math/project';
 import type { Mat3 } from './math/types';
+import type { DECAMesh } from './mesh/meshTypes';
 
 /** 三模式：三庭五眼（比例层）/ Loomis（几何层）/ Bridgman（结构层） */
 export type HeadMode = 'santing' | 'loomis' | 'bridgman';
@@ -25,6 +26,10 @@ export interface AppState {
   photoImage: HTMLImageElement | null;
   photoLandmarks: { x: number; y: number }[] | null;
   photoDeviation: Deviation | null;
+
+  // V3.0 真实 Mesh（后端 DECA 重建）
+  meshData: DECAMesh | null;
+  isLoading: boolean;
 
   // 通用
   showAxes: boolean;
@@ -66,6 +71,9 @@ export const initialState: AppState = {
   photoImage: null,
   photoLandmarks: null,
   photoDeviation: null,
+
+  meshData: null,
+  isLoading: false,
 
   showAxes: true,
   showTing: true,
