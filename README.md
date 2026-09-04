@@ -124,6 +124,13 @@ painting/
 │     └─ ui/
 │        ├─ controls.ts       # Tab/滑块/预设/照片上传 绑定
 │        └─ matrixPanel.ts    # 矩阵与关键公式渲染
+├─ backend/                   # 后端（FastAPI + DECA 真实 3D 重建）
+│  ├─ main.py                 # FastAPI 入口（/api/reconstruct）
+│  ├─ deca_service.py         # DECA 推理封装
+│  ├─ model_utils.py          # 顶点/面片响应整理
+│  ├─ setup.sh                # clone DECA + 下载 FLAME/deca_model 权重
+│  ├─ requirements.txt
+│  └─ Dockerfile
 └─ README.md
 ```
 

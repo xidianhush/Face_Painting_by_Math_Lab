@@ -1,0 +1,22 @@
+# ---- Web 服务 ----
+fastapi
+uvicorn[standard]
+python-multipart
+
+# ---- 图像处理 ----
+pillow
+opencv-python-headless
+scikit-image
+
+# ---- 权重下载 ----
+gdown
+
+# ---- 科学计算（本机已装，列此作完整清单）----
+numpy
+scipy
+PyYAML
+
+# PyTorch（本机已装 CPU 版：torch 2.4.1+cpu / torchvision 0.19.1+cpu）
+# 请勿用默认 PyPI 源重装，否则会换成体积巨大的 CUDA 版。
+# 新环境安装命令：
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
