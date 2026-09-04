@@ -2,6 +2,7 @@ node_modules
 dist
 *.local
 .DS_Store
+frontend/e2e/out/
 
 # Python / backend
 __pycache__/
