@@ -11,6 +11,10 @@ scikit-image
 # ---- 权重下载 ----
 gdown
 
+# ---- DECA 运行依赖（适配后新增）----
+yacs
+kornia
+
 # ---- 科学计算（本机已装，列此作完整清单）----
 numpy
 scipy

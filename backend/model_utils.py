@@ -31,3 +31,13 @@ def _bbox(verts: np.ndarray) -> Dict[str, float]:
         "h": float(xyz_max[1] - xyz_min[1]),
         "d": float(xyz_max[2] - xyz_min[2]),
     }
+
+
+def load_obj_faces(obj_path: str) -> np.ndarray:
+    """从 OBJ 读取三角形面片索引（0-based）。只解析 'f ' 行，取每面前 3 个顶点。"""
+    faces = []
+    with open(obj_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("f "):
+                faces.append([int(p.split("/")[0]) - 1 for p in line.split()[1:4]])
+    return np.array(faces, dtype=np.int64)

@@ -10,11 +10,15 @@ FastAPI + DECA：上传正面照片 → 返回真实 3D 人脸 Mesh（FLAME 5023
 ## 首次准备（一次性）
 
 ```bash
-# 从 backend/ 目录执行：clone DECA + 下载 FLAME / deca_model 权重
+# 全新环境：clone DECA + 下载 FLAME / deca_model 权重
 bash setup.sh
+
+# 本机（已 clone + 已下载 deca_model.tar）：只需补 FLAME 模型
+bash download_flame.sh
 ```
 
 > FLAME 模型受许可保护，脚本会要求输入 https://flame.is.tue.mpg.de/ 的注册账号。
+> 本机当前状态：DECA 已 clone、deca_model.tar（415MB）已下载，仅缺 `generic_model.pkl`。
 
 ## 运行
 
@@ -37,8 +41,22 @@ uvicorn main:app --reload --port 8000
 | pose.jaw | 下颌姿态 |
 | bbox | 顶点包围盒（x/y/z/w/h/d，模型单位）|
 
+## DECA 适配说明（Python 3.11 / torch 2.x / CPU）
+
+官方 DECA 锁定 Python 3.7 / torch 1.6 / numpy 1.18，无法直接在本机跑，做了以下适配：
+
+1. `third_party/DECA/decalib/utils/util.py`：`np.int` → `np.int32`（numpy 2.x 已移除 `np.int`）。
+2. `third_party/DECA/decalib/utils/tensor_cropper.py`：kornia 旧路径 `kornia.geometry.transform.imgwarp` → `kornia.geometry.transform`。
+3. `deca_service.py`：
+   - 子类化 DECA 跳过 `_setup_renderer`（不渲染，避免安装 pytorch3d）；
+   - `cfg.model.use_tex = False`（只取几何，跳过 FLAMETex 与纹理数据）；
+   - 用 OpenCV Haar 人脸检测 + skimage 相似变换裁剪，替代 face-alignment（FAN）；
+   - faces 直接从 `data/head_template.obj` 解析（9976 面），不依赖渲染器。
+4. 依赖：`yacs`、`kornia`（已写入 requirements.txt）。
+
+> 1、2 两处是对 `third_party/`（gitignored）的本地改动；重新 clone 后需重做。
+
 ## 已知注意
 
-- `deca_service.py` 按 DECA 官方 API 编写；首次跑通若与 clone 版本有差异，以实际代码微调。
-- numpy 2.x 与 DECA 部分旧依赖可能存在兼容问题，如报错可考虑降级 `numpy<2`。
-- CPU 推理：人脸检测（FAN）+ DECA 合计约数秒，阿里云 2 核 4G 下的 3 秒目标需实测。
+- CPU 推理：OpenCV 人脸检测 + DECA encode/decode 合计约数秒，阿里云 2 核 4G 下的 3 秒目标需实测。
+- DECA 编码器构建时有 torchvision `pretrained` 弃用告警，无害。
