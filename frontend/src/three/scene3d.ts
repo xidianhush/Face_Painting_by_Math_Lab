@@ -21,6 +21,8 @@ import { degToRad } from '../math/rotations';
 import type { HeadMode, AppState } from '../state';
 import type { Vec3 } from '../math/types';
 import type { DECAMesh } from '../mesh/meshTypes';
+import { extractAuxiliaryLines } from '../mesh/meshExtractor';
+import type { AuxiliaryLines } from '../mesh/meshExtractor';
 
 export interface DragHandler {
   (dThetaDeg: number, dPhiDeg: number): void;
@@ -57,6 +59,8 @@ export class Scene3D {
   private decaSolid: THREE.Mesh | null = null;
   private decaWire: THREE.LineSegments | null = null;
   private lastMeshData: DECAMesh | null = null;
+  private meshLineGroup = new THREE.Group();
+  private meshLines: THREE.Line[] = [];
 
   // 网格/块面（单位几何，update 里 scale/position）
   private mesh!: THREE.Mesh;
@@ -113,6 +117,7 @@ export class Scene3D {
 
     // V3.0 真实 Mesh 组（有 meshData 时显示）+ 光照
     this.head.add(this.decaGroup);
+    this.decaGroup.add(this.meshLineGroup);
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.75));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
     dirLight.position.set(3, 5, 4);
@@ -390,19 +395,43 @@ export class Scene3D {
   private setMeshData(meshData: DECAMesh): void {
     this.clearMeshData();
 
+    // 包围盒与归一化（头高 → 2.6，对应现有 b=1.3）
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (let i = 0; i < meshData.vertices.length; i += 3) {
+      minX = Math.min(minX, meshData.vertices[i]);
+      minY = Math.min(minY, meshData.vertices[i + 1]);
+      minZ = Math.min(minZ, meshData.vertices[i + 2]);
+      maxX = Math.max(maxX, meshData.vertices[i]);
+      maxY = Math.max(maxY, meshData.vertices[i + 1]);
+      maxZ = Math.max(maxZ, meshData.vertices[i + 2]);
+    }
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const cz = (minZ + maxZ) / 2;
+    const scale = 2.6 / Math.max(maxY - minY, 0.001);
+
+    const normVerts = new Float32Array(meshData.vertices.length);
+    for (let i = 0; i < meshData.vertices.length; i += 3) {
+      normVerts[i] = (meshData.vertices[i] - cx) * scale;
+      normVerts[i + 1] = (meshData.vertices[i + 1] - cy) * scale;
+      normVerts[i + 2] = (meshData.vertices[i + 2] - cz) * scale;
+    }
+
+    let normLm: Float32Array | null = null;
+    if (meshData.landmarks) {
+      normLm = new Float32Array(meshData.landmarks.length);
+      for (let i = 0; i < meshData.landmarks.length; i += 3) {
+        normLm[i] = (meshData.landmarks[i] - cx) * scale;
+        normLm[i + 1] = (meshData.landmarks[i + 1] - cy) * scale;
+        normLm[i + 2] = (meshData.landmarks[i + 2] - cz) * scale;
+      }
+    }
+
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(meshData.vertices, 3));
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(normVerts, 3));
     geo.setIndex(new THREE.BufferAttribute(meshData.faces, 1));
     geo.computeVertexNormals();
-
-    // 平移到中心 + 缩放，使头高约为 2.6（对应现有 b=1.3）
-    geo.computeBoundingBox();
-    const bb = geo.boundingBox!;
-    const center = bb.getCenter(new THREE.Vector3());
-    const size = bb.getSize(new THREE.Vector3());
-    const scale = 2.6 / Math.max(size.y, 0.001);
-    geo.translate(-center.x, -center.y, -center.z);
-    geo.scale(scale, scale, scale);
 
     this.decaSolid = new THREE.Mesh(
       geo,
@@ -423,6 +452,42 @@ export class Scene3D {
       new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12 }),
     );
     this.decaGroup.add(this.decaWire);
+
+    // 提取并渲染三庭五眼/中线/下颌/轮廓辅助线
+    this.renderAuxLines(extractAuxiliaryLines(normVerts, meshData.faces, normLm));
+  }
+
+  private renderAuxLines(lines: AuxiliaryLines): void {
+    this.clearMeshLines();
+    const push = (polys: Vec3[][], color: number, opacity = 0.9) => {
+      for (const poly of polys) {
+        if (poly.length < 2) continue;
+        const a = poly[0];
+        const b = poly[poly.length - 1];
+        const closed = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) < 1e-3;
+        const geo = new THREE.BufferGeometry().setFromPoints(poly.map(toVec3));
+        const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+        const obj = closed ? new THREE.LineLoop(geo, mat) : new THREE.Line(geo, mat);
+        obj.renderOrder = 3;
+        this.meshLineGroup.add(obj);
+        this.meshLines.push(obj);
+      }
+    };
+    push(lines.santing, 0x22d3ee); // 三庭 青
+    push(lines.wuyan, 0xd4d4d8); // 五眼 白
+    push([lines.midline], 0xf87171); // 中线 红
+    push([lines.jawline.left], 0xd946ef); // 下颌左 粉紫
+    push([lines.jawline.right], 0xd946ef); // 下颌右 粉紫
+    push([lines.silhouette], 0xfacc15, 0.6); // 轮廓 黄
+  }
+
+  private clearMeshLines(): void {
+    for (const l of this.meshLines) {
+      this.meshLineGroup.remove(l);
+      l.geometry.dispose();
+      (l.material as THREE.Material).dispose();
+    }
+    this.meshLines = [];
   }
 
   private clearMeshData(): void {
@@ -438,6 +503,7 @@ export class Scene3D {
       (this.decaWire.material as THREE.Material).dispose();
       this.decaWire = null;
     }
+    this.clearMeshLines();
   }
 
   private resize(): void {

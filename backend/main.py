@@ -35,5 +35,5 @@ def health() -> dict:
 async def reconstruct(file: UploadFile = File(...)) -> dict:
     contents = await file.read()
     image = np.array(Image.open(io.BytesIO(contents)).convert("RGB"))
-    verts, faces, pose = service.reconstruct(image)
-    return build_response(verts, faces, pose)
+    verts, faces, pose, landmarks = service.reconstruct(image)
+    return build_response(verts, faces, pose, landmarks)

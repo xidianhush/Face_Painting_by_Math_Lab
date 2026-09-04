@@ -107,5 +107,6 @@ class DECAService:
             )
 
         verts = opdict["verts"][0].cpu().numpy()
+        landmarks = opdict["landmarks3d_world"][0].cpu().numpy()
         pose = codedict["pose"][0].cpu().numpy()
-        return verts, self._faces, pose
+        return verts, self._faces, pose, landmarks

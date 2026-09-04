@@ -13,7 +13,9 @@ export async function reconstructFromPhoto(file: File): Promise<DECAMesh> {
   return {
     vertices: new Float32Array(data.vertices),
     faces: new Uint32Array(data.faces),
+    landmarks: data.landmarks ? new Float32Array(data.landmarks) : null,
     vertexCount: data.vertexCount,
     faceCount: data.faceCount,
+    landmarkCount: data.landmarkCount,
   };
 }

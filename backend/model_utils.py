@@ -4,10 +4,12 @@ from typing import Dict
 import numpy as np
 
 
-def build_response(verts: np.ndarray, faces: np.ndarray, pose: np.ndarray) -> Dict:
+def build_response(verts: np.ndarray, faces: np.ndarray, pose: np.ndarray, landmarks: np.ndarray) -> Dict:
     return {
         "vertices": verts.astype(np.float32).flatten().tolist(),
         "faces": faces.astype(np.int64).flatten().tolist(),
+        "landmarks": landmarks.astype(np.float32).flatten().tolist(),
+        "landmarkCount": int(landmarks.shape[0]),
         "vertexCount": int(verts.shape[0]),
         "faceCount": int(faces.shape[0]),
         "pose": {
