@@ -46,16 +46,21 @@ uvicorn main:app --reload --port 8000
 
 官方 DECA 锁定 Python 3.7 / torch 1.6 / numpy 1.18，无法直接在本机跑，做了以下适配：
 
-1. `third_party/DECA/decalib/utils/util.py`：`np.int` → `np.int32`（numpy 2.x 已移除 `np.int`）。
-2. `third_party/DECA/decalib/utils/tensor_cropper.py`：kornia 旧路径 `kornia.geometry.transform.imgwarp` → `kornia.geometry.transform`。
-3. `deca_service.py`：
-   - 子类化 DECA 跳过 `_setup_renderer`（不渲染，避免安装 pytorch3d）；
-   - `cfg.model.use_tex = False`（只取几何，跳过 FLAMETex 与纹理数据）；
-   - 用 OpenCV Haar 人脸检测 + skimage 相似变换裁剪，替代 face-alignment（FAN）；
-   - faces 直接从 `data/head_template.obj` 解析（9976 面），不依赖渲染器。
-4. 依赖：`yacs`、`kornia`（已写入 requirements.txt）。
+对 `third_party/DECA`（gitignored，重新 clone 后需重做）：
+1. `decalib/utils/util.py`：`np.int` → `np.int32`（numpy 2.x 已移除 `np.int`）。
+2. `decalib/utils/tensor_cropper.py`：kornia 旧路径 `kornia.geometry.transform.imgwarp` → `kornia.geometry.transform`。
+3. `decalib/deca.py`：`torch.load(model_path)` → `torch.load(model_path, map_location=self.device)`（checkpoint 是 CUDA 保存的，CPU 机器需要）。
 
-> 1、2 两处是对 `third_party/`（gitignored）的本地改动；重新 clone 后需重做。
+新增 `vendor/chumpy/`（已提交，替代原版 chumpy）：
+- 最小 `chumpy.Ch` 替身，用于反序列化 FLAME `generic_model.pkl`（原版 chumpy 0.69 在 Python 3.11 / pip 25 下装不上）。
+
+`deca_service.py` 的适配：
+- 子类化 DECA 跳过 `_setup_renderer`（不渲染，避免安装 pytorch3d）；
+- `cfg.model.use_tex = False`（只取几何，跳过 FLAMETex 与纹理数据）；
+- 用 OpenCV Haar 人脸检测 + skimage 相似变换裁剪，替代 face-alignment（FAN）；
+- faces 直接从 `data/head_template.obj` 解析（9976 面），不依赖渲染器。
+
+依赖：`yacs`、`kornia`（已写入 requirements.txt）；`chumpy` 无需安装（用 vendor 替身）。
 
 ## 已知注意
 

@@ -53,7 +53,8 @@ with requests.post(
 
 print("Extracting generic_model.pkl ...")
 with zipfile.ZipFile(zip_path) as z:
-    z.extractall(os.path.join(DATA_DIR, "FLAME2020"))
+    # zip 内顶层为 FLAME2020/，解压到 data/ 后文件位于 data/FLAME2020/generic_model.pkl
+    z.extractall(DATA_DIR)
 
 src = os.path.join(DATA_DIR, "FLAME2020", "generic_model.pkl")
 if not os.path.exists(src):

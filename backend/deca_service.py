@@ -23,6 +23,11 @@ DECA_HOME = os.environ.get(
 if DECA_HOME not in sys.path:
     sys.path.insert(0, DECA_HOME)
 
+# chumpy 最小替身（用于反序列化 FLAME generic_model.pkl，见 vendor/chumpy/）
+VENDOR_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor")
+if VENDOR_DIR not in sys.path:
+    sys.path.insert(0, VENDOR_DIR)
+
 
 class DECAService:
     def __init__(self, device: str = "cpu"):
