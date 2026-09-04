@@ -73,6 +73,9 @@ $$ \text{水平半轴} = \sqrt{a^2\cos^2\theta + c^2\sin^2\theta},\qquad \text{�
 ## 🚀 快速开始
 
 ```bash
+# 进入前端目录（V3.0 起为 monorepo，前端位于 frontend/）
+cd frontend
+
 # 安装依赖（含 AI 检测所需的本地 WASM/模型资源）
 npm install
 
@@ -96,30 +99,32 @@ npm run preview
 
 ```
 painting/
-├─ index.html                 # 布局骨架（左 3D / 右 2D / 矩阵条 / 控制面板）
-├─ public/
-│  ├─ face_landmarker.task    # MediaPipe 模型（本地，离线可用）
-│  └─ wasm/                   # MediaPipe WASM（本地，离线可用）
-└─ src/
-   ├─ main.ts                 # 装配 + 状态订阅 → 全量重绘
-   ├─ state.ts                # 单一状态源（角度/投影/模式/参数/照片）
-   ├─ math/
-   │  ├─ types.ts             # Vec3 / Mat3 工具
-   │  ├─ rotations.ts         # Ry/Rx/Rz 与 R = Ry·Rx·Rz
-   │  ├─ head.ts              # 椭球半轴 + 有效几何类型 + 三庭五眼生成器
-   │  ├─ faceParams.ts        # 手动参数 + 变形引擎 resolveFaceParams()
-   │  ├─ loomis.ts            # Loomis 数据生成
-   │  ├─ bridgman.ts          # Bridgman 块面/骨点/力学线生成
-   │  └─ project.ts           # 正交/透视投影 + 轮廓椭圆解析
-   ├─ three/
-   │  └─ scene3d.ts           # 3D 场景（三子分组 + CSS2D 标签 + 拖拽）
-   ├─ canvas2d/
-   │  └─ projector2d.ts       # 2D 投影画布（分模式绘制 + 照片叠加 + 导出）
-   ├─ mediapipe/
-   │  └─ adapter.ts           # MediaPipe 适配器（检测/偏差/参数映射）
-   └─ ui/
-      ├─ controls.ts          # Tab/滑块/预设/照片上传 绑定
-      └─ matrixPanel.ts       # 矩阵与关键公式渲染
+├─ frontend/
+│  ├─ index.html              # 布局骨架（左 3D / 右 2D / 矩阵条 / 控制面板）
+│  ├─ public/
+│  │  ├─ face_landmarker.task # MediaPipe 模型（本地，离线可用）
+│  │  └─ wasm/                # MediaPipe WASM（本地，离线可用）
+│  └─ src/
+│     ├─ main.ts              # 装配 + 状态订阅 → 全量重绘
+│     ├─ state.ts             # 单一状态源（角度/投影/模式/参数/照片）
+│     ├─ math/
+│     │  ├─ types.ts          # Vec3 / Mat3 工具
+│     │  ├─ rotations.ts      # Ry/Rx/Rz 与 R = Ry·Rx·Rz
+│     │  ├─ head.ts           # 椭球半轴 + 有效几何类型 + 三庭五眼生成器
+│     │  ├─ faceParams.ts     # 手动参数 + 变形引擎 resolveFaceParams()
+│     │  ├─ loomis.ts         # Loomis 数据生成
+│     │  ├─ bridgman.ts       # Bridgman 块面/骨点/力学线生成
+│     │  └─ project.ts        # 正交/透视投影 + 轮廓椭圆解析
+│     ├─ three/
+│     │  └─ scene3d.ts        # 3D 场景（三子分组 + CSS2D 标签 + 拖拽）
+│     ├─ canvas2d/
+│     │  └─ projector2d.ts    # 2D 投影画布（分模式绘制 + 照片叠加 + 导出）
+│     ├─ mediapipe/
+│     │  └─ adapter.ts        # MediaPipe 适配器（检测/偏差/参数映射）
+│     └─ ui/
+│        ├─ controls.ts       # Tab/滑块/预设/照片上传 绑定
+│        └─ matrixPanel.ts    # 矩阵与关键公式渲染
+└─ README.md
 ```
 
 ---
