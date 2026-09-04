@@ -14,7 +14,8 @@ FastAPI + DECA：上传正面照片 → 返回真实 3D 人脸 Mesh（FLAME 5023
 bash setup.sh
 
 # 本机（已 clone + 已下载 deca_model.tar）：只需补 FLAME 模型
-bash download_flame.sh
+# 用 Python 版下载（curl/schannel 在 Windows 上易卡住）
+python download_flame.py
 ```
 
 > FLAME 模型受许可保护，脚本会要求输入 https://flame.is.tue.mpg.de/ 的注册账号。
