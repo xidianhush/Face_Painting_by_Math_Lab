@@ -23,6 +23,8 @@ import type { Vec3 } from '../math/types';
 import type { DECAMesh } from '../mesh/meshTypes';
 import { extractAuxiliaryLines } from '../mesh/meshExtractor';
 import type { AuxiliaryLines } from '../mesh/meshExtractor';
+import { fitLoomisElements } from '../mesh/meshLoomis';
+import type { LoomisElements } from '../mesh/meshLoomis';
 
 export interface DragHandler {
   (dThetaDeg: number, dPhiDeg: number): void;
@@ -61,6 +63,8 @@ export class Scene3D {
   private lastMeshData: DECAMesh | null = null;
   private meshLineGroup = new THREE.Group();
   private meshLines: THREE.Line[] = [];
+  private meshLoomisGroup = new THREE.Group();
+  private loomisObjects: THREE.Object3D[] = [];
 
   // 网格/块面（单位几何，update 里 scale/position）
   private mesh!: THREE.Mesh;
@@ -118,6 +122,7 @@ export class Scene3D {
     // V3.0 真实 Mesh 组（有 meshData 时显示）+ 光照
     this.head.add(this.decaGroup);
     this.decaGroup.add(this.meshLineGroup);
+    this.decaGroup.add(this.meshLoomisGroup);
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.75));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
     dirLight.position.set(3, 5, 4);
@@ -455,6 +460,8 @@ export class Scene3D {
 
     // 提取并渲染三庭五眼/中线/下颌/轮廓辅助线
     this.renderAuxLines(extractAuxiliaryLines(normVerts, meshData.faces, normLm));
+    // Loomis 构造元素（PCA 包围椭球 / 面部平面 / 脊线 / 下颌楔）
+    this.renderLoomisLines(fitLoomisElements(normVerts, normLm));
   }
 
   private renderAuxLines(lines: AuxiliaryLines): void {
@@ -490,6 +497,60 @@ export class Scene3D {
     this.meshLines = [];
   }
 
+  private addLoomis(obj: THREE.Object3D): THREE.Object3D {
+    this.meshLoomisGroup.add(obj);
+    this.loomisObjects.push(obj);
+    return obj;
+  }
+
+  private loomisPlane(normal: THREE.Vector3, point: THREE.Vector3, w: number, h: number, color: number): THREE.Mesh {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }),
+    );
+    mesh.position.copy(point);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal.clone().normalize());
+    mesh.renderOrder = 1;
+    return mesh;
+  }
+
+  private loomisLine(points: Vec3[], color: number, opacity: number, closed = false): THREE.Line | THREE.LineLoop {
+    const geo = new THREE.BufferGeometry().setFromPoints(points.map(toVec3));
+    const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+    const line = closed ? new THREE.LineLoop(geo, mat) : new THREE.Line(geo, mat);
+    line.renderOrder = 3;
+    return line;
+  }
+
+  private renderLoomisLines(loomis: LoomisElements): void {
+    this.clearLoomisObjects();
+
+    for (const poly of loomis.grid) this.addLoomis(this.loomisLine(poly, 0x475569, 0.5, true));
+
+    const fp = loomis.frontalPlane;
+    const fpN = new THREE.Vector3(fp.normal.x, fp.normal.y, fp.normal.z);
+    this.addLoomis(this.loomisPlane(fpN, fpN.clone().multiplyScalar(fp.d), 2.4, 2.4, 0x38bdf8));
+
+    for (const sp of [loomis.sidePlanes.left, loomis.sidePlanes.right]) {
+      const n = new THREE.Vector3(sp.normal.x, sp.normal.y, sp.normal.z);
+      this.addLoomis(this.loomisPlane(n, n.clone().multiplyScalar(sp.d), 1.4, 2.6, 0xa78bfa));
+    }
+
+    this.addLoomis(this.loomisLine(loomis.midlineRidge, 0xf87171, 1));
+    this.addLoomis(this.loomisLine(loomis.jawWedge.left, 0xffffff, 0.85));
+    this.addLoomis(this.loomisLine(loomis.jawWedge.right, 0xffffff, 0.85));
+  }
+
+  private clearLoomisObjects(): void {
+    for (const o of this.loomisObjects) {
+      this.meshLoomisGroup.remove(o);
+      const m = o as THREE.Mesh;
+      if (m.geometry) m.geometry.dispose();
+      if (m.material) (m.material as THREE.Material).dispose();
+    }
+    this.loomisObjects = [];
+  }
+
   private clearMeshData(): void {
     if (this.decaSolid) {
       this.decaGroup.remove(this.decaSolid);
@@ -504,6 +565,7 @@ export class Scene3D {
       this.decaWire = null;
     }
     this.clearMeshLines();
+    this.clearLoomisObjects();
   }
 
   private resize(): void {
@@ -543,6 +605,8 @@ export class Scene3D {
       this.lastMeshData = null;
     }
     this.decaGroup.visible = hasMesh;
+    this.meshLineGroup.visible = hasMesh && state.headMode === 'santing';
+    this.meshLoomisGroup.visible = hasMesh && state.headMode === 'loomis';
 
     this.groups.santing.visible = !hasMesh && state.headMode === 'santing';
     this.groups.loomis.visible = !hasMesh && state.headMode === 'loomis';

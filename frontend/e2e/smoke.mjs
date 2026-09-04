@@ -55,9 +55,22 @@ try {
   const total = png.width * png.height;
   console.log(`[4] 视口非背景像素: ${nonBg} / ${total} (${((100 * nonBg) / total).toFixed(2)}%)`);
 
-  console.log('[5] console 错误:', consoleErrors.length ? consoleErrors : '无');
+  // 切换到 Loomis 模式并截图
+  await page.click('#tab-loomis');
+  await page.waitForTimeout(400);
+  const loomisShot = await page.locator('#viewport-3d').screenshot();
+  await page.screenshot({ path: path.join(OUT, 'page-loomis.png') });
+  const loomisPng = PNG.sync.read(loomisShot);
+  let loomisNonBg = 0;
+  for (let i = 0; i < loomisPng.data.length; i += 4) {
+    if (loomisPng.data[i] + loomisPng.data[i + 1] + loomisPng.data[i + 2] > 45) loomisNonBg++;
+  }
+  const loomisTotal = loomisPng.width * loomisPng.height;
+  console.log(`[5] Loomis 模式非背景像素: ${loomisNonBg} / ${loomisTotal} (${((100 * loomisNonBg) / loomisTotal).toFixed(2)}%)`);
 
-  const ok = resp.status() === 200 && consoleErrors.length === 0 && nonBg > 1000;
+  console.log('[6] console 错误:', consoleErrors.length ? consoleErrors : '无');
+
+  const ok = resp.status() === 200 && consoleErrors.length === 0 && nonBg > 1000 && loomisNonBg > 1000;
   console.log(ok ? '✅ PASS' : '❌ FAIL');
   process.exitCode = ok ? 0 : 1;
 } finally {
