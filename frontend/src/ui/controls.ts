@@ -75,7 +75,7 @@ export function initControls(patch: PatchFn, reset: () => void): void {
 
   const toggle = (
     id: string,
-    key: 'showTing' | 'showYan' | 'showMidline' | 'showContour' | 'showJawGuide' | 'showCircle' | 'showAxes' | 'showSphereGrid' | 'showFrontalPlane' | 'showSidePlanes' | 'showEquator' | 'showMidAxis' | 'showChinLine' | 'showCranium' | 'showFaceWedge' | 'showMandible' | 'showEyeSockets' | 'showNasal' | 'showBones' | 'showMuscleLines',
+    key: 'showTing' | 'showYan' | 'showMidline' | 'showContour' | 'showJawGuide' | 'showCircle' | 'showAxes' | 'showSphereGrid' | 'showFrontalPlane' | 'showSidePlanes' | 'showEquator' | 'showMidAxis' | 'showChinLine' | 'showCranium' | 'showFaceWedge' | 'showMandible' | 'showEyeSockets' | 'showNasal' | 'showBones' | 'showMuscleLines' | 'showHair',
   ) => {
     byId<HTMLInputElement>(id).addEventListener('change', (e) => {
       patch({ [key]: (e.currentTarget as HTMLInputElement).checked } as Partial<AppState>);
@@ -101,6 +101,7 @@ export function initControls(patch: PatchFn, reset: () => void): void {
   toggle('tg-nasal', 'showNasal');
   toggle('tg-bones', 'showBones');
   toggle('tg-muscle', 'showMuscleLines');
+  toggle('tg-hair', 'showHair');
 
   for (const tab of MODE_TABS) {
     byId<HTMLButtonElement>(tab.id).addEventListener('click', () => patch({ headMode: tab.mode }));
@@ -142,6 +143,16 @@ export function initControls(patch: PatchFn, reset: () => void): void {
   for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-circle-mode]')) {
     btn.addEventListener('click', () => patch({ circleMode: btn.dataset.circleMode as 'circle' | 'ellipse' }));
   }
+
+  // 预设发型
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-hair-style]')) {
+    btn.addEventListener('click', () => patch({ hairStyle: btn.dataset.hairStyle! }));
+  }
+
+  // 头发透明度
+  byId<HTMLInputElement>('slider-hair-opacity').addEventListener('input', (e) => {
+    patch({ hairOpacity: parseFloat((e.currentTarget as HTMLInputElement).value) } as Partial<AppState>);
+  });
 
   // 分步演示
   for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-step]')) {
@@ -233,6 +244,7 @@ export function syncControls(state: AppState): void {
   setCheck('tg-nasal', state.showNasal);
   setCheck('tg-bones', state.showBones);
   setCheck('tg-muscle', state.showMuscleLines);
+  setCheck('tg-hair', state.showHair);
 
   // 模式 Tab
   for (const tab of MODE_TABS) {
@@ -255,6 +267,17 @@ export function syncControls(state: AppState): void {
   setActive(byId<HTMLButtonElement>('mode-persp'), state.mode === 'perspective');
   setActive(byId<HTMLButtonElement>('circle-mode-circle'), state.circleMode === 'circle');
   setActive(byId<HTMLButtonElement>('circle-mode-ellipse'), state.circleMode === 'ellipse');
+
+  // 发型按钮高亮 + 透明度回显
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-hair-style]')) {
+    const on = btn.dataset.hairStyle === state.hairStyle;
+    btn.classList.toggle('border-cyan-500', on);
+    btn.classList.toggle('text-cyan-300', on);
+    btn.classList.toggle('border-zinc-700', !on);
+    btn.classList.toggle('text-zinc-300', !on);
+  }
+  byId<HTMLInputElement>('slider-hair-opacity').value = String(state.hairOpacity);
+  byId<HTMLElement>('val-hair-opacity').textContent = state.hairOpacity.toFixed(2);
 
   // 纯线稿
   const lineart = byId<HTMLButtonElement>('btn-lineart');

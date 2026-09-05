@@ -25,6 +25,11 @@ export interface AppState {
   preparedMesh: PreparedMesh | null;
   isLoading: boolean;
 
+  // V3.1 预设发型
+  hairStyle: string; // 发型 id
+  showHair: boolean;
+  hairOpacity: number; // 0~1
+
   // 通用
   showAxes: boolean;
   // 三庭五眼
@@ -64,6 +69,10 @@ export const initialState: AppState = {
 
   preparedMesh: null,
   isLoading: false,
+
+  hairStyle: 'short',
+  showHair: true,
+  hairOpacity: 0.9,
 
   showAxes: true,
   showTing: true,

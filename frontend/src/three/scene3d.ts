@@ -24,6 +24,7 @@ import type { PreparedMesh } from '../mesh/prepare';
 import type { AuxiliaryLines } from '../mesh/meshExtractor';
 import type { LoomisElements } from '../mesh/meshLoomis';
 import type { BridgmanElements } from '../mesh/meshBridgman';
+import { buildHair } from '../mesh/hairPresets';
 
 export interface DragHandler {
   (dThetaDeg: number, dPhiDeg: number): void;
@@ -67,6 +68,8 @@ export class Scene3D {
   private meshBridgmanGroup = new THREE.Group();
   private decaBridgman: THREE.Mesh | null = null;
   private bridgmanObjects: THREE.Object3D[] = [];
+  private hairGroup = new THREE.Group();
+  private lastHairStyle = '';
 
   // 网格/块面（单位几何，update 里 scale/position）
   private mesh!: THREE.Mesh;
@@ -126,6 +129,7 @@ export class Scene3D {
     this.decaGroup.add(this.meshLineGroup);
     this.decaGroup.add(this.meshLoomisGroup);
     this.decaGroup.add(this.meshBridgmanGroup);
+    this.decaGroup.add(this.hairGroup);
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.75));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
     dirLight.position.set(3, 5, 4);
@@ -624,6 +628,19 @@ export class Scene3D {
     }
   }
 
+  private setHair(style: string): void {
+    this.clearHair();
+    const group = buildHair(style);
+    if (group) this.hairGroup.add(group);
+  }
+
+  private clearHair(): void {
+    for (const c of [...this.hairGroup.children]) {
+      this.hairGroup.remove(c);
+      this.disposeObject(c);
+    }
+  }
+
   private clearMeshData(): void {
     if (this.decaSolid) {
       this.decaGroup.remove(this.decaSolid);
@@ -684,6 +701,20 @@ export class Scene3D {
     this.meshBridgmanGroup.visible = hasMesh && state.headMode === 'bridgman';
     if (this.decaSolid) this.decaSolid.visible = hasMesh && state.headMode !== 'bridgman';
     if (this.decaWire) this.decaWire.visible = hasMesh && state.headMode !== 'bridgman';
+
+    // 预设发型：有 Mesh 时按发型 id 构建，控制显隐与透明度
+    if (hasMesh && state.hairStyle !== this.lastHairStyle) {
+      this.setHair(state.hairStyle);
+      this.lastHairStyle = state.hairStyle;
+    } else if (!hasMesh && this.lastHairStyle) {
+      this.clearHair();
+      this.lastHairStyle = '';
+    }
+    this.hairGroup.visible = hasMesh && state.showHair && state.hairStyle !== 'none';
+    for (const c of this.hairGroup.children) {
+      const m = c as THREE.Mesh;
+      if (m.material) (m.material as THREE.MeshPhongMaterial).opacity = state.hairOpacity;
+    }
 
     this.groups.santing.visible = !hasMesh && state.headMode === 'santing';
     this.groups.loomis.visible = !hasMesh && state.headMode === 'loomis';

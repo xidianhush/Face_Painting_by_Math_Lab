@@ -182,6 +182,27 @@
           </div>
         </div>
       </details>
+
+      <!-- 头发（预设发型库） -->
+      <details id="hairPanel" class="mt-3 rounded-md border border-zinc-800 bg-zinc-900/50 text-zinc-300">
+        <summary class="cursor-pointer select-none px-3 py-2 text-zinc-400">💇 头发（预设发型库）</summary>
+        <div class="px-3 pb-3">
+          <div class="mb-2 flex flex-wrap items-center gap-2">
+            <span class="text-zinc-500">发型</span>
+            <button data-hair-style="short" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">短发</button>
+            <button data-hair-style="long" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">长发</button>
+            <button data-hair-style="bun" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">发髻</button>
+            <button data-hair-style="none" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">无头发</button>
+          </div>
+          <label class="flex cursor-pointer items-center gap-1.5 text-zinc-300">
+            <input id="tg-hair" type="checkbox" checked /><span>显示头发</span>
+          </label>
+          <label class="mt-2 flex flex-col gap-1 text-[11px] text-zinc-400">
+            <span>头发透明度<b id="val-hair-opacity" class="float-right font-mono text-cyan-300">0.90</b></span>
+            <input id="slider-hair-opacity" type="range" min="0.1" max="1" step="0.05" value="0.9" />
+          </label>
+        </div>
+      </details>
     </section>
   </div>
   <input type="file" id="file-photo" accept="image/*" class="hidden" />
