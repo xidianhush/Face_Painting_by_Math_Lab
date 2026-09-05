@@ -5,6 +5,7 @@ import { getState } from '../state';
 import { PRESETS } from '../math/faceParams';
 import type { FaceParams } from '../math/faceParams';
 import { reconstructFromPhoto } from '../mesh/api';
+import { prepareMesh } from '../mesh/prepare';
 
 type PatchFn = (patch: Partial<AppState>) => void;
 
@@ -153,7 +154,7 @@ export function initControls(patch: PatchFn, reset: () => void): void {
   // 照片重建（V3.0：上传 → 后端 DECA → 真实 Mesh）
   byId<HTMLButtonElement>('btn-upload').addEventListener('click', () => byId<HTMLInputElement>('file-photo').click());
   byId<HTMLButtonElement>('btn-clear-photo').addEventListener('click', () =>
-    patch({ meshData: null, photoMode: false, photoImage: null, photoLandmarks: null, photoDeviation: null }),
+    patch({ preparedMesh: null, isLoading: false }),
   );
   byId<HTMLInputElement>('file-photo').addEventListener('change', async (e) => {
     const input = e.currentTarget as HTMLInputElement;
@@ -163,10 +164,11 @@ export function initControls(patch: PatchFn, reset: () => void): void {
       patch({ isLoading: true });
       showToast('正在重建真实 3D 人脸，请稍候…');
       const mesh = await reconstructFromPhoto(file);
-      patch({ meshData: mesh, isLoading: false });
+      const prepared = prepareMesh(mesh);
+      patch({ preparedMesh: prepared, isLoading: false });
       showToast(`重建完成：${mesh.vertexCount} 顶点 / ${mesh.faceCount} 面`);
     } catch (err) {
-      patch({ isLoading: false, meshData: null });
+      patch({ isLoading: false, preparedMesh: null });
       showToast(`重建失败：${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       input.value = '';
@@ -263,7 +265,7 @@ export function syncControls(state: AppState): void {
   lineart.classList.toggle('text-zinc-300', !state.lineArt);
 
   // 照片重建模式（有真实 Mesh 时高亮上传键、显示清除键）
-  const hasMesh = !!state.meshData;
+  const hasMesh = !!state.preparedMesh;
   byId<HTMLButtonElement>('btn-clear-photo').classList.toggle('hidden', !hasMesh);
   const upload = byId<HTMLButtonElement>('btn-upload');
   upload.classList.toggle('border-cyan-500', hasMesh);

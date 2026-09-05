@@ -14,8 +14,10 @@ import { chinLinePoints, chinTip, constructionCirclePoints, equatorPoints, front
 import { bonePoints, craniumArc, craniumBase, eyeSockets, faceWedgeCorners, mandibleCorners, muscleLines, nasalCorners } from '../math/bridgman';
 import { buildJawGuide } from '../math/jawGuide';
 import { outlineEllipseOrtho, outlinePointsPerspective, project } from '../math/project';
-import { LANDMARK_IDX } from '../mediapipe/adapter';
 import type { AppState } from '../state';
+import type { AuxiliaryLines } from '../mesh/meshExtractor';
+import type { LoomisElements } from '../mesh/meshLoomis';
+import type { BridgmanElements } from '../mesh/meshBridgman';
 import { applyMat3 } from '../math/types';
 import type { Mat3, Vec3 } from '../math/types';
 
@@ -138,8 +140,8 @@ export class Projector2D {
       ctx.setLineDash([]);
     }
 
-    // 起稿基准圆/椭圆（最底层容器）
-    if (state.showCircle && !state.photoMode) {
+    // 起稿基准圆/椭圆（最底层容器，理想模式用）
+    if (state.showCircle && !state.preparedMesh) {
       const circlePts = constructionCirclePoints(geom, state.circleMode);
       ctx.strokeStyle = col('circle', 0.25);
       ctx.lineWidth = 1.5;
@@ -155,8 +157,9 @@ export class Projector2D {
       ctx.setLineDash([]);
     }
 
-    if (state.photoMode) {
-      this.drawPhotoOverlay(ctx, state, w, h, col);
+    // 真实 Mesh：投影同源辅助线（与 3D 一致）
+    if (state.preparedMesh) {
+      this.drawMesh(state, R, px, col);
       return;
     }
 
@@ -369,141 +372,160 @@ export class Projector2D {
     }
   }
 
-  /** 照片模式：照片半透明底图 + 标准虚线 + 用户实线 + 偏差标注 */
-  private drawPhotoOverlay(
-    ctx: CanvasRenderingContext2D,
-    state: AppState,
-    w: number,
-    h: number,
-    col: (k: string, a: number) => string,
-  ): void {
-    const img = state.photoImage;
-    if (!img) return;
+  /** 真实 Mesh：按模式投影同源辅助线 */
+  private drawMesh(state: AppState, R: Mat3, px: (p: Pt2) => Pt2, col: (k: string, a: number) => string): void {
+    const pm = state.preparedMesh!;
+    if (state.headMode === 'santing') this.drawMeshSanting(pm.aux, state, R, px, col);
+    else if (state.headMode === 'loomis') this.drawMeshLoomis(pm.loomis, state, R, px, col);
+    else this.drawMeshBridgman(pm.bridgman, state, R, px, col);
+  }
 
-    const scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
-    const iw = img.naturalWidth * scale;
-    const ih = img.naturalHeight * scale;
-    const ix = (w - iw) / 2;
-    const iy = (h - ih) / 2;
+  private strokeMesh(pts: Vec3[], R: Mat3, state: AppState, px: (p: Pt2) => Pt2): void {
+    if (pts.length < 2) return;
+    const a = pts[0];
+    const b = pts[pts.length - 1];
+    const closed = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) < 1e-3;
+    const ctx = this.ctx;
+    ctx.beginPath();
+    pts.forEach((p, i) => {
+      const q = px(project(p, R, state.mode, state.focal));
+      if (i === 0) ctx.moveTo(q.x, q.y);
+      else ctx.lineTo(q.x, q.y);
+    });
+    if (closed) ctx.closePath();
+    ctx.stroke();
+  }
 
-    ctx.globalAlpha = 0.35;
-    ctx.drawImage(img, ix, iy, iw, ih);
-    ctx.globalAlpha = 1;
-
-    const lms = state.photoLandmarks;
-    const dev = state.photoDeviation;
-    if (!lms || !dev) return;
-
-    const I = LANDMARK_IDX;
-    const mx = (nx: number) => ix + nx * iw;
-    const my = (ny: number) => iy + ny * ih;
-    const leftX = mx(lms[I.leftCheek].x);
-    const rightX = mx(lms[I.rightCheek].x);
-    const hairlineY = my(lms[I.hairline].y);
-    const chinY = my(lms[I.chin].y);
-    const hLine = (x1: number, y: number, x2: number) => {
-      ctx.beginPath();
-      ctx.moveTo(x1, y);
-      ctx.lineTo(x2, y);
-      ctx.stroke();
-    };
-    const vLine = (x: number, y1: number, y2: number) => {
-      ctx.beginPath();
-      ctx.moveTo(x, y1);
-      ctx.lineTo(x, y2);
-      ctx.stroke();
-    };
-
-    // 标准辅助线（虚线灰）
-    ctx.setLineDash([5, 5]);
-    ctx.strokeStyle = col('grid', 0.6);
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= 3; i++) hLine(leftX, hairlineY + ((chinY - hairlineY) * i) / 3, rightX);
-    for (let i = 0; i <= 5; i++) vLine(leftX + ((rightX - leftX) * i) / 5, hairlineY, chinY);
-    ctx.setLineDash([]);
-
-    // 用户实际三庭（实线青）
-    ctx.strokeStyle = col('ting', 0.9);
-    ctx.lineWidth = 1.5;
-    for (const idx of [I.hairline, I.glabella, I.noseBase, I.chin]) {
-      hLine(leftX, my(lms[idx].y), rightX);
+  private drawMeshSanting(aux: AuxiliaryLines, state: AppState, R: Mat3, px: (p: Pt2) => Pt2, col: (k: string, a: number) => string): void {
+    const ctx = this.ctx;
+    if (state.showTing) {
+      ctx.strokeStyle = col('ting', 0.9);
+      ctx.lineWidth = 1.5;
+      for (const ring of aux.santing) this.strokeMesh(ring, R, state, px);
     }
-
-    // 用户实际五眼（眼角竖线，实线白）
-    ctx.strokeStyle = col('yan', 0.9);
-    for (const idx of [I.leftEyeOuter, I.leftEyeInner, I.rightEyeInner, I.rightEyeOuter]) {
-      vLine(mx(lms[idx].x), hairlineY, chinY);
-    }
-
-    // 下颌构造线对比：标准（虚线灰）vs 用户（实线粉紫）
     if (state.showJawGuide) {
-      const jawL = { x: mx(lms[I.leftJaw].x), y: my(lms[I.leftJaw].y) };
-      const jawR = { x: mx(lms[I.rightJaw].x), y: my(lms[I.rightJaw].y) };
-      const chinPt = { x: mx(lms[I.chin].x), y: my(lms[I.chin].y) };
-      const cheekCx = (mx(lms[I.leftCheek].x) + mx(lms[I.rightCheek].x)) / 2;
-      const cheekHalf = (mx(lms[I.rightCheek].x) - mx(lms[I.leftCheek].x)) / 2;
-      const stdHalf = cheekHalf * 0.75; // 标准 taper=0.5 → widthFactor 0.75
-      const stdY = jawL.y;
-
-      ctx.setLineDash([5, 5]);
-      ctx.strokeStyle = col('grid', 0.6);
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(cheekCx - stdHalf, stdY);
-      ctx.lineTo(chinPt.x, chinPt.y);
-      ctx.moveTo(cheekCx + stdHalf, stdY);
-      ctx.lineTo(chinPt.x, chinPt.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
       ctx.strokeStyle = col('jaw', 0.9);
       ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.moveTo(jawL.x, jawL.y);
-      ctx.lineTo(chinPt.x, chinPt.y);
-      ctx.moveTo(jawR.x, jawR.y);
-      ctx.lineTo(chinPt.x, chinPt.y);
-      ctx.stroke();
+      this.strokeMesh(aux.jawline.left, R, state, px);
+      this.strokeMesh(aux.jawline.right, R, state, px);
     }
-
-    // 起稿基准容器叠加 + 提示
-    if (state.showCircle) {
-      const ccx = (leftX + rightX) / 2;
-      const ccy = (hairlineY + chinY) / 2;
-      const rx = state.circleMode === 'ellipse' ? (rightX - leftX) / 2 : (chinY - hairlineY) / 2;
-      const ry = (chinY - hairlineY) / 2;
-      ctx.strokeStyle = col('circle', 0.35);
+    if (state.showYan) {
+      ctx.strokeStyle = col('yan', 0.85);
       ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.ellipse(ccx, ccy, rx, ry, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      const hint =
-        state.faceParams.headRatio > 0.05
-          ? '建议起稿基准用竖椭圆'
-          : state.faceParams.headRatio < -0.05
-            ? '建议起稿基准用横椭圆'
-            : '起稿基准：正圆';
-      ctx.fillStyle = col('circle', 0.85);
-      ctx.font = '12px ui-monospace, monospace';
-      ctx.fillText(hint, 16, 122);
+      for (const mer of aux.wuyan) this.strokeMesh(mer, R, state, px);
     }
-
-    // 偏差标注
-    const sign = (v: number) => (v > 0.0005 ? '+' : v < -0.0005 ? '-' : '');
-    const labels = [
-      `上庭: ${sign(dev.upperPct)}${(dev.upperPct * 100).toFixed(0)}%`,
-      `中庭: ${sign(dev.midPct)}${(dev.midPct * 100).toFixed(0)}%`,
-      `下庭: ${sign(dev.lowerPct)}${(dev.lowerPct * 100).toFixed(0)}%`,
-      `眼距: ${dev.eyeDistPct > 0 ? '宽' : '窄'} ${Math.abs(dev.eyeDistPct * 100).toFixed(0)}%`,
-      `脸高宽比: ${dev.userRatios.faceRatio.toFixed(2)}`,
-    ];
-    ctx.fillStyle = col('contour', 1);
-    ctx.font = '12px ui-monospace, SFMono-Regular, Menlo, monospace';
-    labels.forEach((t, i) => ctx.fillText(t, 16, 26 + i * 18));
+    if (state.showMidline) {
+      ctx.strokeStyle = col('midline', 1);
+      ctx.lineWidth = 1.8;
+      this.strokeMesh(aux.midline, R, state, px);
+    }
+    if (state.showContour) {
+      ctx.strokeStyle = col('contour', 1);
+      ctx.lineWidth = 2;
+      this.strokeMesh(aux.silhouette, R, state, px);
+    }
   }
+
+  private drawMeshLoomis(loomis: LoomisElements, state: AppState, R: Mat3, px: (p: Pt2) => Pt2, col: (k: string, a: number) => string): void {
+    const ctx = this.ctx;
+    if (state.showSphereGrid) {
+      ctx.strokeStyle = col('grid', 0.6);
+      ctx.lineWidth = 1;
+      for (const line of loomis.grid) this.strokeMesh(line, R, state, px);
+    }
+    if (state.showFrontalPlane) {
+      ctx.strokeStyle = col('frontal', 0.6);
+      ctx.lineWidth = 1;
+      this.strokeMesh(this.planeOutline(loomis.frontalPlane.normal, loomis.frontalPlane.d, 2.4, 2.4), R, state, px);
+    }
+    if (state.showSidePlanes) {
+      ctx.strokeStyle = col('side', 0.6);
+      ctx.lineWidth = 1;
+      for (const sp of [loomis.sidePlanes.left, loomis.sidePlanes.right]) {
+        this.strokeMesh(this.planeOutline(sp.normal, sp.d, 1.4, 2.6), R, state, px);
+      }
+    }
+    if (state.showMidAxis) {
+      ctx.strokeStyle = col('midaxis', 1);
+      ctx.lineWidth = 1.8;
+      this.strokeMesh(loomis.midlineRidge, R, state, px);
+    }
+    if (state.showChinLine) {
+      ctx.strokeStyle = col('chin', 0.8);
+      ctx.lineWidth = 1;
+      this.strokeMesh(loomis.jawWedge.left, R, state, px);
+      this.strokeMesh(loomis.jawWedge.right, R, state, px);
+    }
+  }
+
+  private drawMeshBridgman(bridgman: BridgmanElements, state: AppState, R: Mat3, px: (p: Pt2) => Pt2, col: (k: string, a: number) => string): void {
+    const ctx = this.ctx;
+    if (state.showBones) {
+      ctx.fillStyle = col('bone', 1);
+      for (const bp of bridgman.bones) {
+        const q = px(project(bp.pos, R, state.mode, state.focal));
+        ctx.beginPath();
+        ctx.arc(q.x, q.y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = col('bone', 0.95);
+        ctx.font = '10px system-ui, sans-serif';
+        ctx.fillText(bp.label, q.x + 5, q.y - 4);
+        ctx.fillStyle = col('bone', 1);
+      }
+    }
+    if (state.showMuscleLines) {
+      ctx.strokeStyle = col('muscle', 0.9);
+      ctx.lineWidth = 1.5;
+      for (const ml of bridgman.forceLines) {
+        const a = px(project(ml.from, R, state.mode, state.focal));
+        const b = px(project(ml.to, R, state.mode, state.focal));
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        const ang = Math.atan2(b.y - a.y, b.x - a.x);
+        const L = 7;
+        ctx.fillStyle = col('muscle', 1);
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y);
+        ctx.lineTo(b.x - L * Math.cos(ang - 0.4), b.y - L * Math.sin(ang - 0.4));
+        ctx.lineTo(b.x - L * Math.cos(ang + 0.4), b.y - L * Math.sin(ang + 0.4));
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+
+  /** 拟合平面矩形 4 角点（投影到 2D 用） */
+  private planeOutline(normal: Vec3, d: number, w: number, h: number): Vec3[] {
+    const n = { x: normal.x, y: normal.y, z: normal.z };
+    const len = Math.hypot(n.x, n.y, n.z) || 1;
+    n.x /= len;
+    n.y /= len;
+    n.z /= len;
+    const c = { x: n.x * d, y: n.y * d, z: n.z * d };
+    const up = Math.abs(n.y) < 0.9 ? { x: 0, y: 1, z: 0 } : { x: 1, y: 0, z: 0 };
+    const u = { x: up.y * n.z - up.z * n.y, y: up.z * n.x - up.x * n.z, z: up.x * n.y - up.y * n.x };
+    const ul = Math.hypot(u.x, u.y, u.z) || 1;
+    u.x /= ul;
+    u.y /= ul;
+    u.z /= ul;
+    const v = { x: n.y * u.z - n.z * u.y, y: n.z * u.x - n.x * u.z, z: n.x * u.y - n.y * u.x };
+    const vl = Math.hypot(v.x, v.y, v.z) || 1;
+    v.x /= vl;
+    v.y /= vl;
+    v.z /= vl;
+    const hw = w / 2;
+    const hh = h / 2;
+    return [
+      { x: c.x - u.x * hw - v.x * hh, y: c.y - u.y * hw - v.y * hh, z: c.z - u.z * hw - v.z * hh },
+      { x: c.x + u.x * hw - v.x * hh, y: c.y + u.y * hw - v.y * hh, z: c.z + u.z * hw - v.z * hh },
+      { x: c.x + u.x * hw + v.x * hh, y: c.y + u.y * hw + v.y * hh, z: c.z + u.z * hw + v.z * hh },
+      { x: c.x - u.x * hw + v.x * hh, y: c.y - u.y * hw + v.y * hh, z: c.z - u.z * hw + v.z * hh },
+    ];
+  }
+
+  /** 照片叠加与偏差标注已随 MediaPipe 移除（V3.0 改用真实 Mesh 投影） */
 
   private drawNoseOffset(
     ctx: CanvasRenderingContext2D,

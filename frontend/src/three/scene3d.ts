@@ -20,12 +20,9 @@ import { bonePoints, muscleLines } from '../math/bridgman';
 import { degToRad } from '../math/rotations';
 import type { HeadMode, AppState } from '../state';
 import type { Vec3 } from '../math/types';
-import type { DECAMesh } from '../mesh/meshTypes';
-import { extractAuxiliaryLines } from '../mesh/meshExtractor';
+import type { PreparedMesh } from '../mesh/prepare';
 import type { AuxiliaryLines } from '../mesh/meshExtractor';
-import { fitLoomisElements } from '../mesh/meshLoomis';
 import type { LoomisElements } from '../mesh/meshLoomis';
-import { fitBridgmanElements } from '../mesh/meshBridgman';
 import type { BridgmanElements } from '../mesh/meshBridgman';
 
 export interface DragHandler {
@@ -62,7 +59,7 @@ export class Scene3D {
   private decaGroup = new THREE.Group();
   private decaSolid: THREE.Mesh | null = null;
   private decaWire: THREE.LineSegments | null = null;
-  private lastMeshData: DECAMesh | null = null;
+  private lastPreparedMesh: PreparedMesh | null = null;
   private meshLineGroup = new THREE.Group();
   private meshLines: THREE.Line[] = [];
   private meshLoomisGroup = new THREE.Group();
@@ -403,45 +400,12 @@ export class Scene3D {
   }
 
   /** 用 DECA 重建的真实 Mesh 替换理想椭球（归一化到现有头部尺寸） */
-  private setMeshData(meshData: DECAMesh): void {
+  private setMeshData(p: PreparedMesh): void {
     this.clearMeshData();
 
-    // 包围盒与归一化（头高 → 2.6，对应现有 b=1.3）
-    let minX = Infinity, minY = Infinity, minZ = Infinity;
-    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-    for (let i = 0; i < meshData.vertices.length; i += 3) {
-      minX = Math.min(minX, meshData.vertices[i]);
-      minY = Math.min(minY, meshData.vertices[i + 1]);
-      minZ = Math.min(minZ, meshData.vertices[i + 2]);
-      maxX = Math.max(maxX, meshData.vertices[i]);
-      maxY = Math.max(maxY, meshData.vertices[i + 1]);
-      maxZ = Math.max(maxZ, meshData.vertices[i + 2]);
-    }
-    const cx = (minX + maxX) / 2;
-    const cy = (minY + maxY) / 2;
-    const cz = (minZ + maxZ) / 2;
-    const scale = 2.6 / Math.max(maxY - minY, 0.001);
-
-    const normVerts = new Float32Array(meshData.vertices.length);
-    for (let i = 0; i < meshData.vertices.length; i += 3) {
-      normVerts[i] = (meshData.vertices[i] - cx) * scale;
-      normVerts[i + 1] = (meshData.vertices[i + 1] - cy) * scale;
-      normVerts[i + 2] = (meshData.vertices[i + 2] - cz) * scale;
-    }
-
-    let normLm: Float32Array | null = null;
-    if (meshData.landmarks) {
-      normLm = new Float32Array(meshData.landmarks.length);
-      for (let i = 0; i < meshData.landmarks.length; i += 3) {
-        normLm[i] = (meshData.landmarks[i] - cx) * scale;
-        normLm[i + 1] = (meshData.landmarks[i + 1] - cy) * scale;
-        normLm[i + 2] = (meshData.landmarks[i + 2] - cz) * scale;
-      }
-    }
-
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(normVerts, 3));
-    geo.setIndex(new THREE.BufferAttribute(meshData.faces, 1));
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(p.vertices, 3));
+    geo.setIndex(new THREE.BufferAttribute(p.faces, 1));
     geo.computeVertexNormals();
 
     this.decaSolid = new THREE.Mesh(
@@ -464,12 +428,10 @@ export class Scene3D {
     );
     this.decaGroup.add(this.decaWire);
 
-    // 提取并渲染三庭五眼/中线/下颌/轮廓辅助线
-    this.renderAuxLines(extractAuxiliaryLines(normVerts, meshData.faces, normLm));
-    // Loomis 构造元素（PCA 包围椭球 / 面部平面 / 脊线 / 下颌楔）
-    this.renderLoomisLines(fitLoomisElements(normVerts, normLm));
-    // Bridgman 块面分区 / 骨点 / 力学线
-    this.renderBridgman(fitBridgmanElements(normVerts, normLm), normVerts, meshData.faces);
+    // 渲染三庭五眼 / Loomis / Bridgman 辅助线（与 2D 画布同源）
+    this.renderAuxLines(p.aux);
+    this.renderLoomisLines(p.loomis);
+    this.renderBridgman(p.bridgman, p.vertices, p.faces);
   }
 
   private renderAuxLines(lines: AuxiliaryLines): void {
@@ -696,13 +658,13 @@ export class Scene3D {
     }
 
     // V3.0 真实 Mesh：有 meshData 时显示真实人头并隐藏理想几何，否则显示理想模式
-    const hasMesh = !!state.meshData;
-    if (state.meshData && state.meshData !== this.lastMeshData) {
-      this.setMeshData(state.meshData);
-      this.lastMeshData = state.meshData;
-    } else if (!state.meshData && this.lastMeshData) {
+    const hasMesh = !!state.preparedMesh;
+    if (state.preparedMesh && state.preparedMesh !== this.lastPreparedMesh) {
+      this.setMeshData(state.preparedMesh);
+      this.lastPreparedMesh = state.preparedMesh;
+    } else if (!state.preparedMesh && this.lastPreparedMesh) {
       this.clearMeshData();
-      this.lastMeshData = null;
+      this.lastPreparedMesh = null;
     }
     this.decaGroup.visible = hasMesh;
     this.meshLineGroup.visible = hasMesh && state.headMode === 'santing';

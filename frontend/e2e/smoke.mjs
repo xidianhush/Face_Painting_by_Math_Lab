@@ -55,6 +55,15 @@ try {
   const total = png.width * png.height;
   console.log(`[4] 视口非背景像素: ${nonBg} / ${total} (${((100 * nonBg) / total).toFixed(2)}%)`);
 
+  // 2D 画布（应投影出 Mesh 辅助线）
+  const canvas2dShot = await page.locator('#canvas-2d').screenshot();
+  const canvas2dPng = PNG.sync.read(canvas2dShot);
+  let canvas2dNonBg = 0;
+  for (let i = 0; i < canvas2dPng.data.length; i += 4) {
+    if (canvas2dPng.data[i] + canvas2dPng.data[i + 1] + canvas2dPng.data[i + 2] > 45) canvas2dNonBg++;
+  }
+  console.log(`[4b] 2D 画布非背景像素: ${canvas2dNonBg} / ${canvas2dPng.width * canvas2dPng.height}`);
+
   // 切换到 Loomis 模式并截图
   await page.click('#tab-loomis');
   await page.waitForTimeout(400);
@@ -83,7 +92,7 @@ try {
 
   console.log('[7] console 错误:', consoleErrors.length ? consoleErrors : '无');
 
-  const ok = resp.status() === 200 && consoleErrors.length === 0 && nonBg > 1000 && loomisNonBg > 1000 && bridgmanNonBg > 1000;
+  const ok = resp.status() === 200 && consoleErrors.length === 0 && nonBg > 1000 && loomisNonBg > 1000 && bridgmanNonBg > 1000 && canvas2dNonBg > 300;
   console.log(ok ? '✅ PASS' : '❌ FAIL');
   process.exitCode = ok ? 0 : 1;
 } finally {

@@ -3,10 +3,9 @@
 import { buildRotation } from './math/rotations';
 import { DEFAULT_PARAMS } from './math/faceParams';
 import type { FaceParams } from './math/faceParams';
-import type { Deviation } from './mediapipe/adapter';
 import type { ProjectionMode } from './math/project';
 import type { Mat3 } from './math/types';
-import type { DECAMesh } from './mesh/meshTypes';
+import type { PreparedMesh } from './mesh/prepare';
 
 /** 三模式：三庭五眼（比例层）/ Loomis（几何层）/ Bridgman（结构层） */
 export type HeadMode = 'santing' | 'loomis' | 'bridgman';
@@ -20,15 +19,10 @@ export interface AppState {
   headMode: HeadMode;
   lineArt: boolean; // 纯线稿模式（白底黑线）
   circleMode: 'circle' | 'ellipse'; // 起稿基准：正圆/椭圆
-  faceParams: FaceParams; // 个性化面部特征参数
-  // Phase 2 照片检测
-  photoMode: boolean;
-  photoImage: HTMLImageElement | null;
-  photoLandmarks: { x: number; y: number }[] | null;
-  photoDeviation: Deviation | null;
+  faceParams: FaceParams; // 个性化面部特征参数（理想模式用）
 
-  // V3.0 真实 Mesh（后端 DECA 重建）
-  meshData: DECAMesh | null;
+  // V3.0 真实 Mesh（后端 DECA 重建，归一化 + 辅助线已提取）
+  preparedMesh: PreparedMesh | null;
   isLoading: boolean;
 
   // 通用
@@ -67,12 +61,8 @@ export const initialState: AppState = {
   lineArt: false,
   circleMode: 'circle',
   faceParams: { ...DEFAULT_PARAMS },
-  photoMode: false,
-  photoImage: null,
-  photoLandmarks: null,
-  photoDeviation: null,
 
-  meshData: null,
+  preparedMesh: null,
   isLoading: false,
 
   showAxes: true,
