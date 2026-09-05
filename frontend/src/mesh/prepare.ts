@@ -14,6 +14,8 @@ export interface PreparedMesh {
   faces: Uint32Array;
   /** 归一化关键点 */
   landmarks: Float32Array | null;
+  /** 顶点颜色（原图反投影，随顶点索引对齐） */
+  vertexColors: Float32Array | null;
   vertexCount: number;
   faceCount: number;
   aux: AuxiliaryLines;
@@ -62,6 +64,7 @@ export function prepareMesh(mesh: DECAMesh): PreparedMesh {
     vertices,
     faces: mesh.faces,
     landmarks,
+    vertexColors: mesh.vertexColors,
     vertexCount: mesh.vertexCount,
     faceCount: mesh.faceCount,
     aux: extractAuxiliaryLines(vertices, mesh.faces, landmarks),

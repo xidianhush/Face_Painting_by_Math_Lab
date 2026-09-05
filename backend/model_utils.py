@@ -4,8 +4,14 @@ from typing import Dict
 import numpy as np
 
 
-def build_response(verts: np.ndarray, faces: np.ndarray, pose: np.ndarray, landmarks: np.ndarray) -> Dict:
-    return {
+def build_response(
+    verts: np.ndarray,
+    faces: np.ndarray,
+    pose: np.ndarray,
+    landmarks: np.ndarray,
+    vertex_colors: np.ndarray | None = None,
+) -> Dict:
+    resp = {
         "vertices": verts.astype(np.float32).flatten().tolist(),
         "faces": faces.astype(np.int64).flatten().tolist(),
         "landmarks": landmarks.astype(np.float32).flatten().tolist(),
@@ -20,6 +26,9 @@ def build_response(verts: np.ndarray, faces: np.ndarray, pose: np.ndarray, landm
         },
         "bbox": _bbox(verts),
     }
+    if vertex_colors is not None:
+        resp["vertexColors"] = vertex_colors.astype(np.float32).flatten().tolist()
+    return resp
 
 
 def _bbox(verts: np.ndarray) -> Dict[str, float]:

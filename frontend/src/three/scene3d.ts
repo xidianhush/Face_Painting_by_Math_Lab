@@ -406,20 +406,32 @@ export class Scene3D {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(p.vertices, 3));
     geo.setIndex(new THREE.BufferAttribute(p.faces, 1));
+    if (p.vertexColors) {
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(p.vertexColors, 3));
+    }
     geo.computeVertexNormals();
 
-    this.decaSolid = new THREE.Mesh(
-      geo,
-      new THREE.MeshPhongMaterial({
-        color: 0xd9a58f,
-        specular: 0x333333,
-        shininess: 24,
-        transparent: true,
-        opacity: 0.72,
-        side: THREE.DoubleSide,
-        flatShading: true,
-      }),
-    );
+    const material = p.vertexColors
+      ? new THREE.MeshPhongMaterial({
+          vertexColors: true,
+          specular: 0x333333,
+          shininess: 24,
+          transparent: true,
+          opacity: 0.9,
+          side: THREE.DoubleSide,
+          flatShading: true,
+        })
+      : new THREE.MeshPhongMaterial({
+          color: 0xd9a58f,
+          specular: 0x333333,
+          shininess: 24,
+          transparent: true,
+          opacity: 0.72,
+          side: THREE.DoubleSide,
+          flatShading: true,
+        });
+
+    this.decaSolid = new THREE.Mesh(geo, material);
     this.decaGroup.add(this.decaSolid);
 
     this.decaWire = new THREE.LineSegments(

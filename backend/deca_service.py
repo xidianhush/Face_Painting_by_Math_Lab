@@ -86,7 +86,7 @@ class DECAService:
             tform.inverse,
             output_shape=(224, 224),
         )
-        return torch.from_numpy(cropped.transpose(2, 0, 1)).float()[None, ...]
+        return torch.from_numpy(cropped.transpose(2, 0, 1)).float()[None, ...], tform
 
     def reconstruct(self, image_rgb: np.ndarray):
         """输入 RGB 图像 numpy 数组 (H, W, 3)。
@@ -94,7 +94,8 @@ class DECAService:
         返回 verts (5023, 3)、faces (9976, 3)、pose (6,)。
         """
         self._ensure_loaded()
-        images = self._crop_face(image_rgb).to(self.device)
+        images, tform = self._crop_face(image_rgb)
+        images = images.to(self.device)
 
         with torch.no_grad():
             codedict = self._deca.encode(images, use_detail=False)
@@ -109,4 +110,5 @@ class DECAService:
         verts = opdict["verts"][0].cpu().numpy()
         landmarks = opdict["landmarks3d_world"][0].cpu().numpy()
         pose = codedict["pose"][0].cpu().numpy()
-        return verts, self._faces, pose, landmarks
+        cam = codedict["cam"][0].cpu().numpy()
+        return verts, self._faces, pose, landmarks, cam, tform

@@ -5,13 +5,14 @@
 """
 import io
 
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import numpy as np
 
 from deca_service import DECAService
 from model_utils import build_response
+from texture_service import backproject_vertex_colors
 
 app = FastAPI(title="FaceAngle Lab V3.0 backend")
 
@@ -32,8 +33,13 @@ def health() -> dict:
 
 
 @app.post("/api/reconstruct")
-async def reconstruct(file: UploadFile = File(...)) -> dict:
+async def reconstruct(file: UploadFile = File(...), texture_mode: str = Form("none")) -> dict:
     contents = await file.read()
     image = np.array(Image.open(io.BytesIO(contents)).convert("RGB"))
-    verts, faces, pose, landmarks = service.reconstruct(image)
-    return build_response(verts, faces, pose, landmarks)
+    verts, faces, pose, landmarks, cam, tform = service.reconstruct(image)
+
+    vertex_colors = None
+    if texture_mode == "photo":
+        vertex_colors = backproject_vertex_colors(image, verts, cam, tform)
+
+    return build_response(verts, faces, pose, landmarks, vertex_colors)

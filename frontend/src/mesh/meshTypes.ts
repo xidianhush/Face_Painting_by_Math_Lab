@@ -7,6 +7,8 @@ export interface DECAMesh {
   faces: Uint32Array;
   /** FLAME 68 关键点（Mesh 同空间），扁平化 [x1,y1,z1,...]，长度 landmarkCount*3；可能为 null */
   landmarks: Float32Array | null;
+  /** 顶点颜色（原图反投影），扁平化 [r1,g1,b1,...]，长度 vertexCount*3；可能为 null */
+  vertexColors: Float32Array | null;
   vertexCount: number;
   faceCount: number;
   landmarkCount: number;
@@ -20,6 +22,7 @@ export interface ReconstructResponse {
   vertexCount: number;
   faceCount: number;
   landmarkCount: number;
+  vertexColors?: number[];
   pose?: { rotation: number[]; jaw: number[] };
   bbox?: { x: number; y: number; z: number; w: number; h: number; d: number };
 }
