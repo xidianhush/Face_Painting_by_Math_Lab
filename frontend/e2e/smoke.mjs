@@ -90,13 +90,13 @@ try {
   const bridgmanTotal = bridgmanPng.width * bridgmanPng.height;
   console.log(`[6] Bridgman 模式非背景像素: ${bridgmanNonBg} / ${bridgmanTotal} (${((100 * bridgmanNonBg) / bridgmanTotal).toFixed(2)}%)`);
 
-  // 预设发型：展开头发面板，切到长发并截图
+  // 预设发型：展开头发面板，切到 GLB 锥形发并截图
   await page.click('#hairPanel summary');
-  await page.click('[data-hair-style="long"]');
-  await page.waitForTimeout(400);
+  await page.click('[data-hair-style="cone"]');
+  await page.waitForTimeout(800);
   await page.locator('#viewport-3d').screenshot();
   await page.screenshot({ path: path.join(OUT, 'page-hair.png') });
-  console.log('[6b] 发型切换到长发，截图已保存 page-hair.png');
+  console.log('[6b] 发型切换到 GLB 锥形发，截图已保存 page-hair.png');
 
   console.log('[7] console 错误:', consoleErrors.length ? consoleErrors : '无');
 

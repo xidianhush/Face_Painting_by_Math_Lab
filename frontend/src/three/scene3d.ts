@@ -70,6 +70,7 @@ export class Scene3D {
   private bridgmanObjects: THREE.Object3D[] = [];
   private hairGroup = new THREE.Group();
   private lastHairStyle = '';
+  private hairRequest = 0;
 
   // 网格/块面（单位几何，update 里 scale/position）
   private mesh!: THREE.Mesh;
@@ -628,9 +629,14 @@ export class Scene3D {
     }
   }
 
-  private setHair(style: string): void {
+  private async setHair(style: string): Promise<void> {
+    const req = ++this.hairRequest;
     this.clearHair();
-    const group = buildHair(style);
+    const group = await buildHair(style);
+    if (req !== this.hairRequest) {
+      if (group) this.disposeObject(group);
+      return;
+    }
     if (group) this.hairGroup.add(group);
   }
 
@@ -704,7 +710,7 @@ export class Scene3D {
 
     // 预设发型：有 Mesh 时按发型 id 构建，控制显隐与透明度
     if (hasMesh && state.hairStyle !== this.lastHairStyle) {
-      this.setHair(state.hairStyle);
+      void this.setHair(state.hairStyle);
       this.lastHairStyle = state.hairStyle;
     } else if (!hasMesh && this.lastHairStyle) {
       this.clearHair();
