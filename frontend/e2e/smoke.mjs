@@ -68,9 +68,22 @@ try {
   const loomisTotal = loomisPng.width * loomisPng.height;
   console.log(`[5] Loomis 模式非背景像素: ${loomisNonBg} / ${loomisTotal} (${((100 * loomisNonBg) / loomisTotal).toFixed(2)}%)`);
 
-  console.log('[6] console 错误:', consoleErrors.length ? consoleErrors : '无');
+  // 切换到 Bridgman 模式并截图
+  await page.click('#tab-bridgman');
+  await page.waitForTimeout(400);
+  const bridgmanShot = await page.locator('#viewport-3d').screenshot();
+  await page.screenshot({ path: path.join(OUT, 'page-bridgman.png') });
+  const bridgmanPng = PNG.sync.read(bridgmanShot);
+  let bridgmanNonBg = 0;
+  for (let i = 0; i < bridgmanPng.data.length; i += 4) {
+    if (bridgmanPng.data[i] + bridgmanPng.data[i + 1] + bridgmanPng.data[i + 2] > 45) bridgmanNonBg++;
+  }
+  const bridgmanTotal = bridgmanPng.width * bridgmanPng.height;
+  console.log(`[6] Bridgman 模式非背景像素: ${bridgmanNonBg} / ${bridgmanTotal} (${((100 * bridgmanNonBg) / bridgmanTotal).toFixed(2)}%)`);
 
-  const ok = resp.status() === 200 && consoleErrors.length === 0 && nonBg > 1000 && loomisNonBg > 1000;
+  console.log('[7] console 错误:', consoleErrors.length ? consoleErrors : '无');
+
+  const ok = resp.status() === 200 && consoleErrors.length === 0 && nonBg > 1000 && loomisNonBg > 1000 && bridgmanNonBg > 1000;
   console.log(ok ? '✅ PASS' : '❌ FAIL');
   process.exitCode = ok ? 0 : 1;
 } finally {

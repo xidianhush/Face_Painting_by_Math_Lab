@@ -25,6 +25,8 @@ import { extractAuxiliaryLines } from '../mesh/meshExtractor';
 import type { AuxiliaryLines } from '../mesh/meshExtractor';
 import { fitLoomisElements } from '../mesh/meshLoomis';
 import type { LoomisElements } from '../mesh/meshLoomis';
+import { fitBridgmanElements } from '../mesh/meshBridgman';
+import type { BridgmanElements } from '../mesh/meshBridgman';
 
 export interface DragHandler {
   (dThetaDeg: number, dPhiDeg: number): void;
@@ -65,6 +67,9 @@ export class Scene3D {
   private meshLines: THREE.Line[] = [];
   private meshLoomisGroup = new THREE.Group();
   private loomisObjects: THREE.Object3D[] = [];
+  private meshBridgmanGroup = new THREE.Group();
+  private decaBridgman: THREE.Mesh | null = null;
+  private bridgmanObjects: THREE.Object3D[] = [];
 
   // 网格/块面（单位几何，update 里 scale/position）
   private mesh!: THREE.Mesh;
@@ -123,6 +128,7 @@ export class Scene3D {
     this.head.add(this.decaGroup);
     this.decaGroup.add(this.meshLineGroup);
     this.decaGroup.add(this.meshLoomisGroup);
+    this.decaGroup.add(this.meshBridgmanGroup);
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.75));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
     dirLight.position.set(3, 5, 4);
@@ -462,6 +468,8 @@ export class Scene3D {
     this.renderAuxLines(extractAuxiliaryLines(normVerts, meshData.faces, normLm));
     // Loomis 构造元素（PCA 包围椭球 / 面部平面 / 脊线 / 下颌楔）
     this.renderLoomisLines(fitLoomisElements(normVerts, normLm));
+    // Bridgman 块面分区 / 骨点 / 力学线
+    this.renderBridgman(fitBridgmanElements(normVerts, normLm), normVerts, meshData.faces);
   }
 
   private renderAuxLines(lines: AuxiliaryLines): void {
@@ -551,6 +559,97 @@ export class Scene3D {
     this.loomisObjects = [];
   }
 
+  private disposeObject(o: THREE.Object3D): void {
+    if (o instanceof THREE.Group) {
+      for (const c of [...o.children]) this.disposeObject(c);
+      return;
+    }
+    const m = o as THREE.Mesh;
+    if (m.geometry) m.geometry.dispose();
+    if (m.material) {
+      const mat = m.material as THREE.Material | THREE.Material[];
+      if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
+      else mat.dispose();
+    }
+  }
+
+  private renderBridgman(el: BridgmanElements, verts: Float32Array, faces: Uint32Array): void {
+    this.clearBridgman();
+
+    // 区域着色 Mesh（顶点颜色）
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    geo.setIndex(new THREE.BufferAttribute(faces, 1));
+    const colors = new Float32Array(verts.length);
+    for (let i = 0; i < el.regionIds.length; i++) {
+      const c = new THREE.Color(el.regionColors[el.regionIds[i]]);
+      colors[i * 3] = c.r;
+      colors[i * 3 + 1] = c.g;
+      colors[i * 3 + 2] = c.b;
+    }
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geo.computeVertexNormals();
+
+    this.decaBridgman = new THREE.Mesh(
+      geo,
+      new THREE.MeshPhongMaterial({
+        vertexColors: true,
+        specular: 0x333333,
+        shininess: 24,
+        transparent: true,
+        opacity: 0.85,
+        side: THREE.DoubleSide,
+        flatShading: true,
+      }),
+    );
+    this.meshBridgmanGroup.add(this.decaBridgman);
+
+    // 骨点标记
+    const markerMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
+    for (const b of el.bones) {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), markerMat);
+      m.position.copy(toVec3(b.pos));
+      m.renderOrder = 4;
+      this.meshBridgmanGroup.add(m);
+      this.bridgmanObjects.push(m);
+    }
+
+    // 力学箭头
+    const lineMat = new THREE.LineBasicMaterial({ color: 0xfca5a5, transparent: true, opacity: 0.9 });
+    const coneGeo = new THREE.ConeGeometry(0.05, 0.15, 8);
+    const coneMat = new THREE.MeshBasicMaterial({ color: 0xfca5a5 });
+    for (const fl of el.forceLines) {
+      const group = new THREE.Group();
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([toVec3(fl.from), toVec3(fl.to)]),
+        lineMat,
+      );
+      const cone = new THREE.Mesh(coneGeo, coneMat);
+      cone.position.copy(toVec3(fl.to));
+      cone.quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 1, 0),
+        toVec3(fl.to).sub(toVec3(fl.from)).normalize(),
+      );
+      group.add(line, cone);
+      group.renderOrder = 4;
+      this.meshBridgmanGroup.add(group);
+      this.bridgmanObjects.push(group);
+    }
+  }
+
+  private clearBridgman(): void {
+    for (const o of this.bridgmanObjects) {
+      this.meshBridgmanGroup.remove(o);
+      this.disposeObject(o);
+    }
+    this.bridgmanObjects = [];
+    if (this.decaBridgman) {
+      this.meshBridgmanGroup.remove(this.decaBridgman);
+      this.disposeObject(this.decaBridgman);
+      this.decaBridgman = null;
+    }
+  }
+
   private clearMeshData(): void {
     if (this.decaSolid) {
       this.decaGroup.remove(this.decaSolid);
@@ -566,6 +665,7 @@ export class Scene3D {
     }
     this.clearMeshLines();
     this.clearLoomisObjects();
+    this.clearBridgman();
   }
 
   private resize(): void {
@@ -607,6 +707,9 @@ export class Scene3D {
     this.decaGroup.visible = hasMesh;
     this.meshLineGroup.visible = hasMesh && state.headMode === 'santing';
     this.meshLoomisGroup.visible = hasMesh && state.headMode === 'loomis';
+    this.meshBridgmanGroup.visible = hasMesh && state.headMode === 'bridgman';
+    if (this.decaSolid) this.decaSolid.visible = hasMesh && state.headMode !== 'bridgman';
+    if (this.decaWire) this.decaWire.visible = hasMesh && state.headMode !== 'bridgman';
 
     this.groups.santing.visible = !hasMesh && state.headMode === 'santing';
     this.groups.loomis.visible = !hasMesh && state.headMode === 'loomis';
