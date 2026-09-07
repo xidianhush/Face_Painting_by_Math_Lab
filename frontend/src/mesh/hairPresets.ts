@@ -9,10 +9,16 @@ export interface HairPreset {
 }
 
 export const HAIR_PRESETS: HairPreset[] = [
-  { id: 'short', name: '短发' },
-  { id: 'long', name: '长发' },
-  { id: 'bun', name: '发髻' },
+  { id: 'short', name: '短发（程序）' },
+  { id: 'long', name: '长发（程序）' },
+  { id: 'bun', name: '发髻（程序）' },
   { id: 'cone', name: '锥形发' },
+  { id: 'q_adventurer', name: '冒险家短发' },
+  { id: 'q_casual', name: '休闲长发' },
+  { id: 'q_scifi', name: '科幻短发' },
+  { id: 'q_soldier', name: '士兵短发' },
+  { id: 'q_suit', name: '正装短发' },
+  { id: 'q_witch', name: '女巫长发' },
   { id: 'none', name: '无头发' },
 ];
 
@@ -41,7 +47,6 @@ function markRenderOrder(obj: THREE.Object3D): void {
   });
 }
 
-/** 程序化发型：短发 */
 function buildShort(): THREE.Group {
   const g = new THREE.Group();
   const cap = new THREE.Mesh(
@@ -53,7 +58,6 @@ function buildShort(): THREE.Group {
   return g;
 }
 
-/** 程序化发型：长发 */
 function buildLong(): THREE.Group {
   const g = buildShort();
   const back = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 0.9, 1.6, 28, 1, true), hairMat());
@@ -62,7 +66,6 @@ function buildLong(): THREE.Group {
   return g;
 }
 
-/** 程序化发型：发髻 */
 function buildBun(): THREE.Group {
   const g = buildShort();
   const bun = new THREE.Mesh(new THREE.SphereGeometry(0.44, 22, 14), hairMat());
@@ -71,29 +74,64 @@ function buildBun(): THREE.Group {
   return g;
 }
 
-/** 加载 GLB 头发：先底对齐原点、按头宽缩放，再抬高到指定高度 */
-async function loadGlbHair(url: string, scale: number, yOffset: number): Promise<THREE.Group> {
+/** 加载 GLB 头发：过滤眉毛等小碎片，按头宽缩放，顶部/底部对齐到指定高度 */
+async function loadGlbHair(
+  url: string,
+  fitWidth: number,
+  alignY: number,
+  alignTop: boolean,
+): Promise<THREE.Group> {
   const gltf = await new GLTFLoader().loadAsync(url);
   const scene = gltf.scene;
+
+  // 过滤小碎片（眉毛/睫毛等 < 500 顶点）
+  const toRemove: THREE.Object3D[] = [];
+  scene.traverse((c) => {
+    const m = c as THREE.Mesh;
+    if (m.isMesh && m.geometry.getAttribute('position').count < 500) toRemove.push(m);
+  });
+  for (const m of toRemove) m.removeFromParent();
+
   const box = new THREE.Box3().setFromObject(scene);
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
-  // x/z 居中，Y 底对齐 0
-  scene.position.set(-center.x, -center.y + size.y / 2, -center.z);
+  const scale = fitWidth / Math.max(size.x, 0.01);
+
+  if (alignTop) {
+    scene.position.set(-center.x, -center.y - size.y / 2, -center.z);
+  } else {
+    scene.position.set(-center.x, -center.y + size.y / 2, -center.z);
+  }
   scene.scale.setScalar(scale);
-  scene.position.y += yOffset;
+  scene.position.y += alignY;
+
   markRenderOrder(scene);
   return scene;
 }
 
-/** 按发型 id 构建头发组。id='none' 返回 null。 */
+const QUATERNIUS: Record<string, string> = {
+  q_adventurer: '/hair/quaternius/adventurer_hair.glb',
+  q_casual: '/hair/quaternius/casual_hair.glb',
+  q_scifi: '/hair/quaternius/scifi_hair.glb',
+  q_soldier: '/hair/quaternius/soldier_hair.glb',
+  q_suit: '/hair/quaternius/suit_hair.glb',
+  q_witch: '/hair/quaternius/witch_hair.glb',
+};
+
 export async function buildHair(id: string): Promise<THREE.Group | null> {
   if (id === 'none') return null;
   if (id === 'cone') {
     try {
-      return await loadGlbHair('/hair/cone.glb', 0.9, 0.75);
+      return await loadGlbHair('/hair/cone.glb', 2.0, 0.75, false);
     } catch {
-      return buildShort(); // GLB 加载失败时降级为短发
+      return buildShort();
+    }
+  }
+  if (QUATERNIUS[id]) {
+    try {
+      return await loadGlbHair(QUATERNIUS[id], 2.0, 1.25, true);
+    } catch {
+      return buildShort();
     }
   }
   if (id === 'long') return buildLong();

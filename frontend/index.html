@@ -187,13 +187,21 @@
       <details id="hairPanel" class="mt-3 rounded-md border border-zinc-800 bg-zinc-900/50 text-zinc-300">
         <summary class="cursor-pointer select-none px-3 py-2 text-zinc-400">💇 头发（预设发型库）</summary>
         <div class="px-3 pb-3">
-          <div class="mb-2 flex flex-wrap items-center gap-2">
+          <div class="mb-2 flex items-center gap-2">
             <span class="text-zinc-500">发型</span>
-            <button data-hair-style="short" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">短发</button>
-            <button data-hair-style="long" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">长发</button>
-            <button data-hair-style="bun" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">发髻</button>
-            <button data-hair-style="cone" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">锥形发</button>
-            <button data-hair-style="none" class="rounded-md border border-zinc-700 px-2 py-0.5 text-zinc-300 transition hover:border-zinc-500">无头发</button>
+            <select id="select-hair-style" class="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-300">
+              <option value="short">短发（程序）</option>
+              <option value="long">长发（程序）</option>
+              <option value="bun">发髻（程序）</option>
+              <option value="cone">锥形发</option>
+              <option value="q_adventurer">冒险家短发</option>
+              <option value="q_casual">休闲长发</option>
+              <option value="q_scifi">科幻短发</option>
+              <option value="q_soldier">士兵短发</option>
+              <option value="q_suit">正装短发</option>
+              <option value="q_witch">女巫长发</option>
+              <option value="none">无头发</option>
+            </select>
           </div>
           <label class="flex cursor-pointer items-center gap-1.5 text-zinc-300">
             <input id="tg-hair" type="checkbox" checked /><span>显示头发</span>

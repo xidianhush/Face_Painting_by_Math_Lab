@@ -144,10 +144,10 @@ export function initControls(patch: PatchFn, reset: () => void): void {
     btn.addEventListener('click', () => patch({ circleMode: btn.dataset.circleMode as 'circle' | 'ellipse' }));
   }
 
-  // 预设发型
-  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-hair-style]')) {
-    btn.addEventListener('click', () => patch({ hairStyle: btn.dataset.hairStyle! }));
-  }
+  // 预设发型（下拉）
+  byId<HTMLSelectElement>('select-hair-style').addEventListener('change', (e) => {
+    patch({ hairStyle: (e.currentTarget as HTMLSelectElement).value });
+  });
 
   // 头发透明度
   byId<HTMLInputElement>('slider-hair-opacity').addEventListener('input', (e) => {
@@ -268,14 +268,8 @@ export function syncControls(state: AppState): void {
   setActive(byId<HTMLButtonElement>('circle-mode-circle'), state.circleMode === 'circle');
   setActive(byId<HTMLButtonElement>('circle-mode-ellipse'), state.circleMode === 'ellipse');
 
-  // 发型按钮高亮 + 透明度回显
-  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-hair-style]')) {
-    const on = btn.dataset.hairStyle === state.hairStyle;
-    btn.classList.toggle('border-cyan-500', on);
-    btn.classList.toggle('text-cyan-300', on);
-    btn.classList.toggle('border-zinc-700', !on);
-    btn.classList.toggle('text-zinc-300', !on);
-  }
+  // 发型下拉回显 + 透明度回显
+  byId<HTMLSelectElement>('select-hair-style').value = state.hairStyle;
   byId<HTMLInputElement>('slider-hair-opacity').value = String(state.hairOpacity);
   byId<HTMLElement>('val-hair-opacity').textContent = state.hairOpacity.toFixed(2);
 
